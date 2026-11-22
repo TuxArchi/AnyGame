@@ -256,8 +256,11 @@ func buildLinux(root, electronDir, sidecars, output string) error {
 	if err := os.WriteFile(filepath.Join(appDir, "AppRun"), []byte(appRun), 0o755); err != nil {
 		return err
 	}
-	if err := copyFile(filepath.Join(root, "LICENSE"), filepath.Join(appDir, "LICENSE"), 0o644); err != nil {
-		return err
+	documents := filepath.Join(appDir, "usr", "share", "doc", "anygame")
+	for _, name := range []string{"LICENSE", "DISCLAIMER.md", "PRIVACY.md", "THIRD_PARTY_NOTICES.md"} {
+		if err := copyFile(filepath.Join(root, name), filepath.Join(documents, name), 0o644); err != nil {
+			return err
+		}
 	}
 
 	tool, err := appImageTool()
@@ -291,8 +294,15 @@ func buildWindows(root, electronDir, sidecars, output string) error {
 	if err := copyFile(filepath.Join(sidecars, "anygame.exe"), filepath.Join(appDir, "resources", "bin", "anygame.exe"), 0o755); err != nil {
 		return err
 	}
-	if err := copyFile(filepath.Join(root, "LICENSE"), filepath.Join(appDir, "LICENSE.txt"), 0o644); err != nil {
-		return err
+	for _, item := range []struct{ source, target string }{
+		{"LICENSE", "LICENSE-AnyGame.txt"},
+		{"DISCLAIMER.md", "DISCLAIMER.txt"},
+		{"PRIVACY.md", "PRIVACY.txt"},
+		{"THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES.txt"},
+	} {
+		if err := copyFile(filepath.Join(root, item.source), filepath.Join(appDir, item.target), 0o644); err != nil {
+			return err
+		}
 	}
 	readme := fmt.Sprintf("AnyGame %s\r\n\r\n"+
 		"1. Extract this folder anywhere.\r\n"+

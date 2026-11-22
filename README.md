@@ -3,8 +3,12 @@
 Capa de producto sobre [AnyPS5](https://github.com/boykopovar/AnyPS5): descubre un
 juego de PS5 extraído, desenvuelve su `eboot.bin` si hace falta, lo convierte con
 el relinker oficial de AnyPS5 y ensambla un paquete listo para ejecutar en Linux o
-Windows. Incluye **CLI** y **aplicación de escritorio** con biblioteca, portadas,
+Windows. Incluye **CLI** y **aplicación de escritorio** con biblioteca, iconos,
 estado de conversión, runtimes y ajustes.
+
+> **Pensada para copias de juegos personales y legales.** AnyGame no incluye
+> juegos, datos, imágenes, firmware ni claves, y no descifra ni elude
+> protecciones. Usa solo copias que poseas legalmente.
 
 AnyGame **no reimplementa** el runtime: usa los binarios y las librerías de los
 releases oficiales de AnyPS5, y añade lo que falta para trabajar con juegos
@@ -30,7 +34,25 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 | Login de GitHub en la app (Device Flow + PAT) | ✅ |
 | Ajustes de rendimiento por juego (resolución, FPS, FSR, present mode…) | ✅ |
 | Empaquetado: AppImage (Linux) y ZIP con `.exe` (Windows) | ✅ |
-| Lotes, catálogo de parches, perfiles por juego | ⏳ |
+| Lotes, sumisión de parches in-app y paridad Windows completa | ⏳ |
+
+## Descargas
+
+Los paquetes están en [Releases](https://github.com/TuxArchi/AnyGame/releases):
+
+- `AnyGame-0.1.0-x86_64.AppImage` (Linux)
+- `AnyGame-0.1.0-windows-x64.zip` (Windows)
+- `SHA256SUMS`
+
+## Apoya AnyGame
+
+AnyGame se mantiene en mi tiempo libre. Si te resulta útil y quieres apoyar el
+desarrollo, puedes invitarme a un café:
+
+**https://ko-fi.com/tuxarchi**
+
+No es obligatorio: los informes reproducibles y las contribuciones de parches
+también ayudan mucho.
 
 ## Requisitos
 
@@ -186,7 +208,15 @@ login ya está operativo y el token queda disponible en el proceso principal.
 
 ## Licencia y aviso legal
 
-AnyGame se distribuye bajo GPL-2.0, la misma licencia que AnyPS5. No incluye ni
-distribuye software de Sony, firmware, claves ni juegos. Los binarios de AnyPS5
-se descargan de sus releases oficiales. Usa el proyecto solo con material que
-poseas legalmente.
+AnyGame se distribuye bajo **GPL-2.0-only**. No está afiliado, autorizado ni
+respaldado por Sony Interactive Entertainment. No incluye ni distribuye código o
+datos de juegos, imágenes, saves, firmware, claves ni librerías propietarias.
+AnyPS5 se descarga de sus releases oficiales en tiempo de ejecución.
+
+- [Aviso legal completo](DISCLAIMER.md)
+- [Privacidad](PRIVACY.md)
+- [Terceros](THIRD_PARTY_NOTICES.md)
+
+Usa AnyGame solo con copias de juegos que **poseas legalmente** y donde tu ley
+permita copias personales, interoperabilidad y preservación. Eres responsable
+del contenido que conviertas y de los parches que apliques.

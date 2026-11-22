@@ -141,12 +141,12 @@ func TestDiscoverNestedDefaultLanguage(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "eboot.bin"), []byte{0x54, 0x14, 0xf5, 0xee})
 	write(t, filepath.Join(root, "sce_sys", "param.json"),
-		[]byte(`{"titleId":"PPSA25670","contentVersion":"01.000.003","localizedParameters":{"defaultLanguage":"en-US","en-US":{"titleName":"Woodo"},"es-ES":{"titleName":"Woodo ES"}}}`))
+		[]byte(`{"titleId":"PPSA12345","contentVersion":"01.000.003","localizedParameters":{"defaultLanguage":"en-US","en-US":{"titleName":"Demo Title"},"es-ES":{"titleName":"Demo Title ES"}}}`))
 	info, err := Discover(root)
 	if err != nil {
 		t.Fatalf("Discover: %v", err)
 	}
-	if info.TitleID != "PPSA25670" || info.TitleName != "Woodo" || info.Language != "en-US" {
+	if info.TitleID != "PPSA12345" || info.TitleName != "Demo Title" || info.Language != "en-US" {
 		t.Fatalf("unexpected metadata: %#v", info)
 	}
 }

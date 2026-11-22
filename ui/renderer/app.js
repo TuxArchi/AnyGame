@@ -1629,9 +1629,10 @@ function renderAbout() {
       <div>
         <h1>AnyGame</h1>
         <p>A desktop library and conversion launcher for PS5 titles, built on top of the official AnyPS5 relinker and system libraries. AnyGame never ships game data, firmware or keys.</p>
-        <div style="display:flex;gap:10px;margin-top:14px">
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
           <button class="btn small" id="about-anyps5">${icon('external', 13)} AnyPS5 on GitHub</button>
           <button class="btn small" id="about-docs">${icon('external', 13)} Usage guide</button>
+          <button class="btn small primary" id="about-kofi">${icon('spark', 13)} Support on Ko-fi</button>
         </div>
       </div>
     </div>
@@ -1652,8 +1653,10 @@ function renderAbout() {
     </div>
     <p style="color:var(--faint);font-size:11px;line-height:1.6;margin-top:18px">
       AnyGame is licensed under GPL-2.0. AnyPS5 is an independent project, not affiliated with Sony Interactive Entertainment.
-      “PlayStation” and “PS5” are trademarks of Sony Interactive Entertainment Inc. Use only with content you legally own.
+      “PlayStation” and “PS5” are trademarks of Sony Interactive Entertainment Inc. Use only with personal, legally owned copies.
+      If AnyGame helps you, you can support the project at ko-fi.com/tuxarchi.
     </p>`;
   $('#about-anyps5').addEventListener('click', () => api.shell.openExternal('https://github.com/boykopovar/AnyPS5'));
   $('#about-docs').addEventListener('click', () => api.shell.openExternal('https://github.com/boykopovar/AnyPS5/blob/main/docs/user/USAGE.md'));
+  $('#about-kofi').addEventListener('click', () => api.shell.openExternal('https://ko-fi.com/tuxarchi'));
 }
