@@ -28,7 +28,7 @@ git push origin v0.1.0
 ```sh
 make check
 go run ./tools/package -version 0.1.0
-sha256sum dist/*.AppImage dist/*.zip > dist/SHA256SUMS
+(cd dist && sha256sum AnyGame-*.AppImage AnyGame-*.zip > SHA256SUMS)
 gh release create v0.1.0 \
   --title "AnyGame v0.1.0" \
   --notes-file docs/releases/v0.1.0.md \

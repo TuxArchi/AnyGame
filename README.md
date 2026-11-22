@@ -9,6 +9,9 @@ estado de conversión, runtimes y ajustes.
 > **Pensada para copias de juegos personales y legales.** AnyGame no incluye
 > juegos, datos, imágenes, firmware ni claves, y no descifra ni elude
 > protecciones. Usa solo copias que poseas legalmente.
+>
+> ¿Te resulta útil? Puedes apoyar el proyecto en
+> **[ko-fi.com/tuxarchi](https://ko-fi.com/tuxarchi)**.
 
 AnyGame **no reimplementa** el runtime: usa los binarios y las librerías de los
 releases oficiales de AnyPS5, y añade lo que falta para trabajar con juegos
