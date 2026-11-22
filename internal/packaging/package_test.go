@@ -176,6 +176,27 @@ func TestPackageExcludesNestedModuleDirs(t *testing.T) {
 	}
 }
 
+func TestPackageAddsWindowsModuleDependencies(t *testing.T) {
+	runtime := makeRuntime(t, "libkernel.prx", "libmodule.prx")
+	output := t.TempDir()
+	executable := filepath.Join(output, "Game.exe")
+	if err := os.WriteFile(executable, []byte("MZ"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(output, "Game.Module.prx.guest.prx.needed.json"), []byte(`["libmodule.prx"]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Package(Options{
+		OutputDir: output, Executable: executable, Name: "Game", Target: "windows",
+		Runtime: runtime, Needed: []string{"libkernel.prx"}, NeededKnown: true, Resources: ResourcesNone,
+	}); err != nil {
+		t.Fatalf("Package: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(output, "libs", "libmodule.prx")); err != nil {
+		t.Fatalf("module dependency was not copied: %v", err)
+	}
+}
+
 func TestPackageWindowsCopiesRuntimeDLLs(t *testing.T) {
 	runtime := makeRuntime(t, "libkernel.prx", "libstdc++-6.dll", "libgcc_s_seh-1.dll")
 	output := t.TempDir()

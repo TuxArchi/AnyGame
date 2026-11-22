@@ -5,6 +5,7 @@ package verify
 
 import (
 	"bytes"
+	"debug/pe"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -253,36 +254,95 @@ func (r *Report) checkNeededFile(path string, libs, bundled map[string]bool, str
 }
 
 func (r *Report) checkWindowsDependencies(dir, executable string, libs, bundled map[string]bool) {
-	r.add("imports", StatusWarn, "PE import tables are not inspected yet; checking needed.json")
 	stem := strings.TrimSuffix(executable, filepath.Ext(executable))
-	for _, candidate := range []string{
-		stem + ".needed.json",
-		filepath.Join(dir, "anygame.needed.json"),
-	} {
-		if _, err := os.Stat(candidate); err == nil {
-			body, err := os.ReadFile(candidate)
-			if err != nil {
-				continue
-			}
-			var names []string
-			if err := json.Unmarshal(body, &names); err != nil {
-				r.add("needed.json", StatusWarn, err.Error())
-				continue
-			}
-			for _, name := range names {
-				if bundled[name] || libs[name] || systemDLL(name) {
-					continue
-				}
-				r.add("needed.json", StatusFail, "DLL is missing from libs/: "+name)
-				r.MissingLibs = appendUnique(r.MissingLibs, name)
+	files := []string{stem + ".needed.json"}
+	if matches, err := filepath.Glob(stem + ".*.needed.json"); err == nil {
+		files = append(files, matches...)
+	}
+	needed := map[string]bool{}
+	for _, path := range files {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var names []string
+		if json.Unmarshal(body, &names) != nil {
+			r.add("needed.json", StatusWarn, fmt.Sprintf("%s is invalid", filepath.Base(path)))
+			continue
+		}
+		for _, name := range names {
+			if name != "" {
+				needed[name] = true
 			}
 		}
 	}
+	if len(needed) == 0 {
+		r.add("needed.json", StatusWarn, "no needed.json files found")
+	} else {
+		missing := 0
+		for name := range needed {
+			if bundled[name] || libs[name] || systemDLL(name) {
+				continue
+			}
+			r.add("needed.json", StatusFail, "DLL or PRX is missing from libs/: "+name)
+			r.MissingLibs = appendUnique(r.MissingLibs, name)
+			missing++
+		}
+		if missing == 0 {
+			r.add("needed.json", StatusOK, fmt.Sprintf("%d libraries resolved", len(needed)))
+		}
+	}
+
+	imports, err := peImports(executable)
+	if err != nil {
+		r.add("imports", StatusWarn, "PE import table not readable: "+err.Error())
+	} else {
+		missing := 0
+		for _, name := range imports {
+			if libs[name] || bundled[name] || systemDLL(name) {
+				continue
+			}
+			r.add("imports", StatusFail, "PE import is missing from libs/: "+name)
+			r.MissingLibs = appendUnique(r.MissingLibs, name)
+			missing++
+		}
+		if missing == 0 {
+			r.add("imports", StatusOK, fmt.Sprintf("%d PE imports resolved", len(imports)))
+		}
+	}
+
 	for _, name := range []string{"libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"} {
 		if !libs[name] {
 			r.add("toolchain", StatusWarn, name+" is missing from libs/")
 		}
 	}
+}
+
+func peImports(path string) ([]string, error) {
+	file, err := pe.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	if libraries, err := file.ImportedLibraries(); err == nil && len(libraries) > 0 {
+		return libraries, nil
+	}
+	symbols, err := file.ImportedSymbols()
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var libraries []string
+	for _, symbol := range symbols {
+		if index := strings.LastIndex(symbol, ":"); index >= 0 {
+			name := symbol[index+1:]
+			if name != "" && !seen[name] {
+				seen[name] = true
+				libraries = append(libraries, name)
+			}
+		}
+	}
+	return libraries, nil
 }
 
 func app0Names(dir string) map[string]bool {

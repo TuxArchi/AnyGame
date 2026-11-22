@@ -5,6 +5,7 @@ package packaging
 
 import (
 	"debug/elf"
+	"debug/pe"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -119,7 +120,7 @@ func Package(options Options) (*Result, error) {
 		}
 	}
 
-	libraries, libraryWarnings, err := copyLibraries(options.Runtime.LibsDir, needed, options.NeededKnown, options.Target, options.OutputDir)
+	libraries, libraryWarnings, err := copyLibraries(options.Runtime.LibsDir, needed, options.NeededKnown, options.Target, options.OutputDir, options.Executable)
 	if err != nil {
 		return nil, err
 	}
@@ -331,13 +332,14 @@ func removeNames(values, remove []string) []string {
 	return result
 }
 
-func copyLibraries(libsDir string, needed []string, neededKnown bool, platform, outputDir string) ([]string, []string, error) {
+func copyLibraries(libsDir string, needed []string, neededKnown bool, platform, outputDir, executable string) ([]string, []string, error) {
 	destinationDir := filepath.Join(outputDir, "libs")
 	if err := os.MkdirAll(destinationDir, 0o755); err != nil {
 		return nil, nil, err
 	}
 	seeds := append([]string(nil), needed...)
 	seeds = append(seeds, bundledModuleDependencies(outputDir)...)
+	seeds = append(seeds, moduleNeededDependencies(outputDir, executable)...)
 	names, warnings, err := resolveClosure(libsDir, seeds, neededKnown)
 	if err != nil {
 		return nil, nil, err
@@ -431,6 +433,36 @@ func resolveClosure(libsDir string, needed []string, neededKnown bool) ([]string
 // bundledModuleDependencies lists the host libraries that the converted
 // modules in app0 import. The relinker's needed.json does not always include
 // them, so the package resolves them here as well.
+func moduleNeededDependencies(outputDir, executable string) []string {
+	// The relinker writes <stem>.<module>.needed.json for every converted
+	// module. They carry the host libraries that module imports, which the
+	// executable's own needed.json does not always include.
+	stem := strings.TrimSuffix(filepath.Base(executable), filepath.Ext(executable))
+	if stem == "" {
+		return nil
+	}
+	matches, _ := filepath.Glob(filepath.Join(outputDir, stem+".*.needed.json"))
+	seen := map[string]bool{}
+	var result []string
+	for _, path := range matches {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var names []string
+		if json.Unmarshal(body, &names) != nil {
+			continue
+		}
+		for _, name := range names {
+			if name != "" && !seen[name] {
+				seen[name] = true
+				result = append(result, name)
+			}
+		}
+	}
+	return result
+}
+
 func bundledModuleDependencies(outputDir string) []string {
 	seen := map[string]bool{}
 	var result []string
@@ -472,12 +504,42 @@ func importedLibraries(path string) ([]string, error) {
 	if names, err := elfpatch.Needed(path); err == nil {
 		return names, nil
 	}
+	if names, err := peImportedLibraries(path); err == nil {
+		return names, nil
+	}
 	file, err := elf.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 	return file.ImportedLibraries()
+}
+
+func peImportedLibraries(path string) ([]string, error) {
+	file, err := pe.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	if libraries, err := file.ImportedLibraries(); err == nil && len(libraries) > 0 {
+		return libraries, nil
+	}
+	symbols, err := file.ImportedSymbols()
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var libraries []string
+	for _, symbol := range symbols {
+		if index := strings.LastIndex(symbol, ":"); index >= 0 {
+			name := symbol[index+1:]
+			if name != "" && !seen[name] {
+				seen[name] = true
+				libraries = append(libraries, name)
+			}
+		}
+	}
+	return libraries, nil
 }
 
 func copyResources(source, destination, outputDir string, link bool, excluded map[string]bool) error {

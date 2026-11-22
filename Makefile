@@ -1,4 +1,4 @@
-VERSION ?= 0.1.0
+VERSION ?= 0.1.1
 GO ?= go
 BIN := bin/anygame
 LDFLAGS := -s -w -X anygame/internal/cli.Version=$(VERSION)

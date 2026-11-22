@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -50,6 +51,9 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 		add("anyps5", "warn", "no AnyPS5 runtime for this host; run `anygame update`")
 	}
 
+	if runtime.GOOS == "windows" {
+		add("cpu", "warn", "CPU extension check is not implemented on Windows; AnyPS5 validates the host at launch")
+	}
 	if runtime.GOOS == "linux" {
 		flags := cpuFlags("/proc/cpuinfo")
 		required := []string{"avx2", "fma", "f16c", "bmi1", "bmi2", "lzcnt", "movbe"}
@@ -129,10 +133,25 @@ func cpuFlags(path string) map[string]bool {
 }
 
 func vulkanLoader() string {
-	candidates := []string{"/usr/lib/libvulkan.so.1", "/usr/lib64/libvulkan.so.1", "/usr/lib/x86_64-linux-gnu/libvulkan.so.1"}
 	if runtime.GOOS == "windows" {
-		candidates = []string{"vulkan-1.dll"}
+		root := os.Getenv("SystemRoot")
+		if root == "" {
+			root = `C:\Windows`
+		}
+		candidates := []string{filepath.Join(root, "System32", "vulkan-1.dll")}
+		for _, directory := range filepath.SplitList(os.Getenv("PATH")) {
+			if directory != "" {
+				candidates = append(candidates, filepath.Join(directory, "vulkan-1.dll"))
+			}
+		}
+		for _, candidate := range candidates {
+			if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {
+				return candidate
+			}
+		}
+		return ""
 	}
+	candidates := []string{"/usr/lib/libvulkan.so.1", "/usr/lib64/libvulkan.so.1", "/usr/lib/x86_64-linux-gnu/libvulkan.so.1"}
 	for _, candidate := range candidates {
 		if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {
 			return candidate

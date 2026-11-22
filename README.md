@@ -37,14 +37,15 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 | Login de GitHub en la app (Device Flow + PAT) | ✅ |
 | Ajustes de rendimiento por juego (resolución, FPS, FSR, present mode…) | ✅ |
 | Empaquetado: AppImage (Linux) y ZIP con `.exe` (Windows) | ✅ |
-| Lotes, sumisión de parches in-app y paridad Windows completa | ⏳ |
+| Verificación y dependencias de Windows (PE) | ✅ |
+| Lotes y sumisión de parches in-app | ⏳ |
 
 ## Descargas
 
 Los paquetes están en [Releases](https://github.com/TuxArchi/AnyGame/releases):
 
-- `AnyGame-0.1.0-x86_64.AppImage` (Linux)
-- `AnyGame-0.1.0-windows-x64.zip` (Windows)
+- `AnyGame-0.1.1-x86_64.AppImage` (Linux)
+- `AnyGame-0.1.1-windows-x64.zip` (Windows)
 - `SHA256SUMS`
 
 ## Apoya AnyGame
