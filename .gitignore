@@ -1,0 +1,9 @@
+# Build output
+/bin/
+/dist/
+
+# Work directory for this project (temporaries, reference checkouts, fixtures)
+/.work-tmp/
+
+# Conversion artifacts
+*.conversion.log

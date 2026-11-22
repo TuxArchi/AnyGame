@@ -1,0 +1,91 @@
+# AnyGame
+
+Capa de producto sobre [AnyPS5](https://github.com/boykopovar/AnyPS5): descubre un
+juego de PS5 extraído, desenvuelve su `eboot.bin` si hace falta, lo convierte con
+el relinker oficial de AnyPS5 y ensambla un paquete listo para ejecutar en Linux o
+Windows.
+
+AnyGame **no reimplementa** el runtime: usa los binarios y las librerías de los
+releases oficiales de AnyPS5, y añade lo que falta para trabajar con juegos
+completos: actualizador con verificación SHA-256, detección de títulos,
+desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metadatos.
+
+## Estado
+
+| Área | Estado |
+|---|---|
+| Actualizador de AnyPS5 (Linux/Windows, SHA-256, versiones) | ✅ |
+| Descubrimiento de título (`eboot.bin`, `app0/`, módulos, `param.json`/`param.sfo`) | ✅ |
+| Desenvoltura SELF/fSELF (port en Go, idéntico byte a byte a `unwrap_self.py`) | ✅ |
+| Conversión con el relinker oficial | ✅ |
+| Paquete Linux (ELF, `libs/`, `app0/`, `run.sh`, `.desktop`) | ✅ |
+| Paquete Windows (PE, `libs/`, `app0/`, `run.bat`) | ✅ |
+| Copia selectiva de librerías según `.needed.json` + dependencias | ✅ |
+| GUI/TUI, lotes, catálogo de parches, perfiles por juego | ⏳ |
+
+## Requisitos
+
+- Linux o Windows **x86-64** (es la arquitectura a la que se recompilan los
+  títulos; un host ARM no sirve).
+- Go 1.22 o superior para compilar AnyGame.
+- GPU con Vulkan 1.1 y driver actualizado para **ejecutar** los juegos.
+- Un volcado **descifrado** del juego: AnyPS5 no descifra contenedores.
+
+## Compilar
+
+```sh
+make build          # bin/anygame
+make check          # formato, vet y tests
+make dist           # binarios Linux y Windows en dist/
+```
+
+## Uso rápido
+
+```sh
+# 1. Comprobar el host
+anygame doctor
+
+# 2. Instalar el runtime de AnyPS5 (última versión; Linux y Windows)
+anygame update --target all
+
+# 3. Inspeccionar el juego
+anygame info /ruta/JuegoPS5
+
+# 4. Convertir y empaquetar
+anygame build /ruta/JuegoPS5 -o ./juegos/PPSA01234
+
+# 5. Ejecutar
+anygame run ./juegos/PPSA01234
+```
+
+`anygame update --check` avisa de versiones nuevas sin descargar nada.
+`anygame update --version 0.1.5 --target linux` fija una versión concreta.
+
+## Layout generado
+
+```text
+PPSA01234/
+├── PPSA01234.elf          # o PPSA01234.exe en Windows
+├── libs/                  # librerías del sistema AnyPS5 necesarias
+├── app0/                  # recursos del juego + eboot.bin original
+│   ├── eboot.bin
+│   ├── sce_sys/
+│   └── sce_module/        # módulos ya convertidos por el relinker
+├── run.sh                 # o run.bat
+├── <Título>.desktop       # Linux
+└── anygame.json           # manifiesto de la conversión
+```
+
+## Variables de entorno
+
+| Variable | Efecto |
+|---|---|
+| `ANYGAME_HOME` | Directorio de datos (runtimes, caché, estado). |
+| `GITHUB_TOKEN` | Sube el límite de la API de GitHub. |
+
+## Licencia y aviso legal
+
+AnyGame se distribuye bajo GPL-2.0, la misma licencia que AnyPS5. No incluye ni
+distribuye software de Sony, firmware, claves ni juegos. Los binarios de AnyPS5
+se descargan de sus releases oficiales. Usa el proyecto solo con material que
+poseas legalmente.
