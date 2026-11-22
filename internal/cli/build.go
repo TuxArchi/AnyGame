@@ -90,6 +90,9 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	if err != nil {
 		return fail(stderr, err)
 	}
+	if samePath(outputDir, info.Resources) {
+		return fail(stderr, fmt.Errorf("output directory must differ from the title folder %s", info.Resources))
+	}
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fail(stderr, err)
 	}
@@ -108,13 +111,40 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	if !*skipModules && len(info.ModuleDirs) == 0 && len(moduleDirs) == 0 {
 		fmt.Fprintf(stderr, "warning: %s has no sce_module/sce_modules/prx directory; pass --skip-modules for a title without guest modules\n", info.Resources)
 	}
-	if len(info.ModuleDirs) > 1 {
-		fmt.Fprintf(stderr, "warning: multiple module directories found: %s; the relinker accepts one\n", strings.Join(info.ModuleDirs, ", "))
+	hasSceModule, hasSceModules := false, false
+	for _, directory := range info.ModuleDirs {
+		switch filepath.Base(directory) {
+		case "sce_module":
+			hasSceModule = true
+		case "sce_modules":
+			hasSceModules = true
+		}
+	}
+	if hasSceModule && hasSceModules {
+		return fail(stderr, fmt.Errorf("%s contains both sce_module and sce_modules; keep only the one the title ships", info.Resources))
+	}
+	moduleParent := info.Resources
+	parents := map[string]bool{}
+	for _, directory := range info.ModuleDirs {
+		parents[filepath.Dir(directory)] = true
+	}
+	if len(parents) > 1 {
+		var list []string
+		for parent := range parents {
+			list = append(list, parent)
+		}
+		return fail(stderr, fmt.Errorf("module directories live under different parents (%s); keep them together", strings.Join(list, ", ")))
+	}
+	for parent := range parents {
+		moduleParent = parent
 	}
 
 	workDir := filepath.Join(outputDir, ".anygame-work")
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return fail(stderr, err)
+	}
+	for _, name := range []string{"sce_module", "sce_modules", "prx"} {
+		_ = os.RemoveAll(filepath.Join(outputDir, "app0", name))
 	}
 	removeWork := func() {
 		if !*keepWork {
@@ -150,7 +180,7 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		Input:         conversionInput,
 		Output:        executablePath,
 		Target:        target,
-		SceModulePath: info.Resources,
+		SceModulePath: moduleParent,
 		Registry:      true,
 		Patches:       patchesPath,
 		NoPatches:     *noPatches,

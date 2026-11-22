@@ -409,6 +409,10 @@ func extractLibs(archive, destination string) error {
 				return err
 			}
 		case tar.TypeSymlink:
+			link := path.Clean(strings.ReplaceAll(header.Linkname, "\\", "/"))
+			if path.IsAbs(link) || link == ".." || strings.HasPrefix(link, "../") || strings.Contains(link, "/../") {
+				return fmt.Errorf("symlink %q escapes the destination", header.Linkname)
+			}
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return err
 			}

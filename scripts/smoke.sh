@@ -26,8 +26,8 @@ go build -trimpath -o "$BIN" ./cmd/anygame
 "$BIN" doctor || true
 
 HOST="$(go env GOOS)"
-"$BIN" update --target "$HOST" >/dev/null || "$BIN" update --target "$HOST"
-"$BIN" update --target windows >/dev/null || true
+"$BIN" update --target "$HOST" >/dev/null
+"$BIN" update --target windows >/dev/null
 
 "$BIN" info "$TITLE"
 

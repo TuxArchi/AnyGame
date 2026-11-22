@@ -37,6 +37,7 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 make build          # bin/anygame
 make check          # formato, vet y tests
 make dist           # binarios Linux y Windows en dist/
+make smoke           # prueba de extremo a extremo (requiere gcc y red)
 ```
 
 ## Uso rápido

@@ -31,3 +31,6 @@ dist:
 
 clean:
 	rm -rf bin dist
+
+smoke:
+	./scripts/smoke.sh

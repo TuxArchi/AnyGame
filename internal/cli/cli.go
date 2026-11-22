@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -168,6 +169,20 @@ func outputPath(value, fallback string) (string, error) {
 		value = fallback
 	}
 	return filepath.Abs(value)
+}
+
+func samePath(a, b string) bool {
+	absoluteA, errA := filepath.Abs(a)
+	absoluteB, errB := filepath.Abs(b)
+	if errA != nil || errB != nil {
+		return false
+	}
+	if filepath.Clean(absoluteA) == filepath.Clean(absoluteB) {
+		return true
+	}
+	infoA, errA := os.Stat(absoluteA)
+	infoB, errB := os.Stat(absoluteB)
+	return errA == nil && errB == nil && os.SameFile(infoA, infoB)
 }
 
 func sanitizeFilename(value string) string {
