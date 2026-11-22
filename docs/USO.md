@@ -124,6 +124,31 @@ Sin duplicar 100 GB de recursos:
 anygame build /juegos/PPSA01234 -o ./juegos/PPSA01234 --resources link
 ```
 
+## Verificar y diagnosticar
+
+```sh
+anygame verify ./juegos/PPSA01234
+anygame verify ./juegos/PPSA01234 --json
+
+anygame diagnose ./juegos/PPSA01234 --seconds 15
+anygame diagnose ./juegos/PPSA01234 --json
+```
+
+`verify` comprueba sin lanzar nada:
+
+- `anygame.json`, formato ELF/PE, target y permisos.
+- `libs/`, `run.sh`/`run.bat` y `app0/eboot.bin`.
+- `DT_NEEDED` del ejecutable y de **cada módulo convertido**, resolviendo
+  `$ORIGIN`, librerías de `libs/` y librerías del sistema.
+
+`diagnose` ejecuta el juego durante N segundos (15 por defecto), lo detiene y
+analiza `anygame-diagnose.log`: librerías que no cargan, ficheros que el juego
+abre y no existen, funciones no implementadas, fallos fatales y red. El
+resultado se guarda en `anygame.json` (`diagnosis`) y la ficha del juego lo
+muestra.
+
+`build --diagnose --diagnose-seconds 15` hace la prueba al terminar de empaquetar.
+
 ## Ejecutar
 
 ```sh

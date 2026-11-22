@@ -46,6 +46,10 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return runUnwrap(rest, stdout, stderr)
 	case "build":
 		return runBuild(ctx, rest, stdout, stderr)
+	case "verify":
+		return runVerify(rest, stdout, stderr)
+	case "diagnose":
+		return runDiagnose(rest, stdout, stderr)
 	case "run":
 		return runGame(ctx, rest, stdout, stderr)
 	case "doctor":
@@ -68,6 +72,8 @@ Commands:
   runtimes    List the installed AnyPS5 runtimes
   info        Inspect an extracted PS5 title folder
   build       Convert a title and assemble a runnable package
+  verify      Check that a converted package is complete
+  diagnose    Launch a package briefly and analyze its log
   run         Launch a converted package
   unwrap      Unwrap a decrypted SELF container into a clean ELF
   doctor      Check host prerequisites

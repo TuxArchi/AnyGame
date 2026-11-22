@@ -430,6 +430,9 @@ ipcMain.handle('game:play', async (_event, id) => {
   if (!game.packagePath) throw new Error('convert the game first');
   const info = executableIn(game.packagePath);
   if (!info.exists) throw new Error('the converted executable is missing');
+  if (info.manifest && info.manifest.target && info.manifest.target !== process.platform) {
+    throw new Error(`this package targets ${info.manifest.target}; run it on ${info.manifest.target}`);
+  }
   const current = settings();
   const env = cliEnv();
   if (current.fullscreen) env.ANYPS5_FULLSCREEN = '1';

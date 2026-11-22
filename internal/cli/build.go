@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"anygame/internal/anyps5"
+	"anygame/internal/diagnose"
 	"anygame/internal/game"
 	"anygame/internal/packaging"
 	"anygame/internal/relink"
@@ -39,12 +40,14 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	unusedFilter := flags.Int("unused-filter", 0, "drop unused imports: 0 keep, 1 non-PLT, 2 strict")
 	keepWork := flags.Bool("keep-work", false, "keep the conversion work directory")
 	dryRun := flags.Bool("dry-run", false, "plan the conversion without writing the package")
+	diagnoseAfter := flags.Bool("diagnose", false, "run a short test after packaging")
+	diagnoseSeconds := flags.Int("diagnose-seconds", 15, "seconds for the post-build test")
 	jsonOut := flags.Bool("json", false, "print JSON")
 	var moduleDirs, executables StringList
 	flags.Var(&moduleDirs, "module-dir", "additional module directory (repeatable)")
 	flags.Var(&executables, "executable", "additional title executable (repeatable)")
 	positionals, err := parsePositionals(flags, args,
-		"no-patches", "skip-modules", "windows-gui", "to-intel", "keep-work", "dry-run", "json")
+		"no-patches", "skip-modules", "windows-gui", "to-intel", "keep-work", "dry-run", "json", "diagnose")
 	if err != nil {
 		return 2
 	}
@@ -241,16 +244,26 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return fail(stderr, err)
 	}
 
+	var diagnosis *diagnose.Findings
+	if *diagnoseAfter {
+		fmt.Fprintf(stderr, "Testing the package for %d seconds...\n", *diagnoseSeconds)
+		diagnosis, err = diagnose.Run(outputDir, *diagnoseSeconds)
+		if err != nil {
+			packageResult.Warnings = append(packageResult.Warnings, fmt.Sprintf("post-build test: %v", err))
+		}
+	}
+
 	type buildReport struct {
-		Title      string   `json:"title"`
-		TitleID    string   `json:"titleId"`
-		Target     string   `json:"target"`
-		Runtime    string   `json:"runtime"`
-		Executable string   `json:"executable"`
-		Directory  string   `json:"directory"`
-		Launch     string   `json:"launch"`
-		Libraries  []string `json:"libraries"`
-		Warnings   []string `json:"warnings,omitempty"`
+		Title      string             `json:"title"`
+		TitleID    string             `json:"titleId"`
+		Target     string             `json:"target"`
+		Runtime    string             `json:"runtime"`
+		Executable string             `json:"executable"`
+		Directory  string             `json:"directory"`
+		Launch     string             `json:"launch"`
+		Libraries  []string           `json:"libraries"`
+		Warnings   []string           `json:"warnings,omitempty"`
+		Diagnosis  *diagnose.Findings `json:"diagnosis,omitempty"`
 	}
 	report := buildReport{
 		Title: info.TitleName, TitleID: info.TitleID, Target: target, Runtime: rt.Version,
@@ -270,6 +283,16 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	fmt.Fprintf(stdout, "Package:    %s\n", outputDir)
 	for _, warning := range report.Warnings {
 		fmt.Fprintf(stdout, "warning:    %s\n", warning)
+	}
+	if diagnosis != nil {
+		fmt.Fprintf(stdout, "\nTest:       %s", diagnosis.Verdict)
+		if diagnosis.Window {
+			fmt.Fprint(stdout, " (window created)")
+		}
+		fmt.Fprintf(stdout, "\nTest log:   %s\n", diagnosis.LogPath)
+		for _, name := range diagnosis.MissingLibraries {
+			fmt.Fprintf(stdout, "missing:    %s\n", name)
+		}
 	}
 	fmt.Fprintf(stdout, "\nLaunch it with: anygame run %s\n", quotePath(outputDir))
 	return 0
@@ -322,6 +345,14 @@ func runGame(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	executable, err := findExecutable(directory)
 	if err != nil {
 		return fail(stderr, err)
+	}
+	if body, err := os.ReadFile(filepath.Join(directory, "anygame.json")); err == nil {
+		var manifest struct {
+			Target string `json:"target"`
+		}
+		if json.Unmarshal(body, &manifest) == nil && manifest.Target != "" && manifest.Target != runtime.GOOS {
+			return fail(stderr, fmt.Errorf("this package targets %s and cannot run on %s", manifest.Target, runtime.GOOS))
+		}
 	}
 	command := exec.CommandContext(ctx, executable, extra...)
 	command.Dir = directory

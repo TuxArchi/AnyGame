@@ -493,6 +493,7 @@ function openDrawer(game) {
   const status = statusMeta(game);
   const target = game.packageTarget || game.target || state.settings.target;
   const manifest = game.manifest;
+  const diagnosis = manifest && manifest.diagnosis ? manifest.diagnosis : null;
   const warnings = Array.isArray(game.warnings) ? game.warnings : [];
   root.innerHTML = `
     <div class="drawer-backdrop" data-close-drawer></div>
@@ -519,6 +520,7 @@ function openDrawer(game) {
         <div class="drawer-actions">
           <button class="btn primary" id="drawer-play" ${game.status === 'ready' ? '' : 'disabled'}>${icon('play', 15)} Play</button>
           <button class="btn" id="drawer-build">${icon(game.status === 'ready' ? 'refresh' : 'spark', 15)} ${game.status === 'ready' ? 'Rebuild' : 'Convert'}</button>
+          <button class="btn icon" id="drawer-test" title="Run a diagnostic" ${game.status === 'ready' ? '' : 'disabled'}>${icon('terminal', 16)}</button>
           <button class="btn icon" id="drawer-folder" title="Open folder">${icon('folder', 16)}</button>
         </div>
         <div class="detail-list">
@@ -529,7 +531,8 @@ function openDrawer(game) {
           <div class="detail-row"><span class="key">Built</span><span class="value">${escapeHtml(timeAgo(game.lastBuiltAt))}</span></div>
           <div class="detail-row"><span class="key">Added</span><span class="value">${escapeHtml(timeAgo(game.addedAt))}</span></div>
           ${manifest && Array.isArray(manifest.libraries) ? `<div class="detail-row"><span class="key">Libraries</span><span class="value">${manifest.libraries.length} system libraries</span></div>` : ''}
-          ${game.packagePath ? `<div class="detail-row"><span class="key">Run log</span><span class="value"><button class="btn small" id="drawer-log">${icon('terminal', 13)} Open log</button></span></div>` : ''}
+          ${diagnosis ? `<div class="detail-row"><span class="key">Diagnosis</span><span class="value"><span class="chip ${diagnosis.verdict === 'running' || diagnosis.verdict === 'exited' ? 'ok' : diagnosis.verdict === 'missing-libraries' || diagnosis.verdict === 'crashed' ? 'err' : 'warn'}"><span class="dot"></span>${escapeHtml(diagnosisLabel(diagnosis.verdict))}</span> <span style="color:var(--faint)">${escapeHtml(timeAgo(diagnosis.at))}</span></span></div>` : ''}
+          ${game.packagePath ? `<div class="detail-row"><span class="key">Run log</span><span class="value"><button class="btn small" id="drawer-log">${icon('terminal', 13)} Open log</button> <button class="btn small" id="drawer-verify">${icon('check', 13)} Verify</button></span></div>` : ''}
         </div>
         ${warnings.length ? `<div class="drawer-note">${warnings.map((warning) => escapeHtml(warning)).join('<br>')}</div>` : ''}
         <div class="detail-row" style="margin-top:14px;border-top:1px solid rgba(255,255,255,.05)">
@@ -548,6 +551,8 @@ function openDrawer(game) {
   $('#drawer-log', root)?.addEventListener('click', () => {
     api.shell.openPath(`${game.packagePath}/anygame-run.log`).catch((error) => toast('No run log yet', error.message, 'warn'));
   });
+  $('#drawer-test', root)?.addEventListener('click', () => { closeDrawer(); runDiagnose(game); });
+  $('#drawer-verify', root)?.addEventListener('click', () => { closeDrawer(); runVerify(game); });
   $('#drawer-remove', root).addEventListener('click', () => {
     if (state.settings.confirmRemove === false) removeGame(game);
     else confirmRemove(game);
@@ -618,6 +623,7 @@ function openConvert(game) {
           <label class="check"><input type="checkbox" id="convert-skip-modules"> Skip guest modules</label>
           ${game.extraModules && game.extraModules.length ? `<span class="hint">Extra modules: ${escapeHtml(game.extraModules.join(', '))}</span>` : ''}
           <label class="check"><input type="checkbox" id="convert-gui" ${target === 'windows' ? '' : 'disabled'}> Windows GUI subsystem</label>
+          <label class="check"><input type="checkbox" id="convert-diagnose" checked> Test after conversion (15 s)</label>
         </div>
         <div class="field">
           <label>&nbsp;</label>
@@ -666,6 +672,7 @@ function openConvert(game) {
     if ($('#convert-skip-modules').checked) args.push('--skip-modules');
     if ($('#convert-gui').checked && selectedTarget === 'windows') args.push('--windows-gui');
     if ($('#convert-intel').checked) args.push('--to-intel');
+    if ($('#convert-diagnose').checked) args.push('--diagnose', '--diagnose-seconds', '15');
     closeModal();
     runJob({
       title: `Converting ${game.name}`,
@@ -816,6 +823,40 @@ function closeModal(force = false) {
 /* ------------------------------------------------------------------ */
 /* Actions                                                             */
 /* ------------------------------------------------------------------ */
+
+function diagnosisLabel(verdict) {
+  switch (verdict) {
+    case 'running': return 'Runs (window)';
+    case 'exited': return 'Exited cleanly';
+    case 'started': return 'Started, no window';
+    case 'missing-libraries': return 'Missing libraries';
+    case 'crashed': return 'Crashed';
+    case 'no-window': return 'No window';
+    default: return String(verdict || 'unknown');
+  }
+}
+
+function runDiagnose(game) {
+  if (!game.packagePath) { toast('Convert the game first', '', 'warn'); return; }
+  runJob({
+    title: `Testing ${game.name}`,
+    subtitle: `15 seconds · ${game.packagePath}`,
+    args: ['diagnose', game.packagePath, '--seconds', '15'],
+    successText: 'Diagnosis finished',
+    onSuccess: async () => { await refreshLibrary(true); },
+  });
+}
+
+function runVerify(game) {
+  if (!game.packagePath) { toast('Convert the game first', '', 'warn'); return; }
+  runJob({
+    title: `Verifying ${game.name}`,
+    subtitle: game.packagePath,
+    args: ['verify', game.packagePath],
+    successText: 'Package is consistent',
+    onSuccess: async () => {},
+  });
+}
 
 async function playGame(game) {
   try {

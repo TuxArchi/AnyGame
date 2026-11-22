@@ -200,6 +200,23 @@ script original: la salida es **idéntica byte a byte**.
   o el ZIP Windows. El AppImage usa `--no-sandbox` (sandbox de Chromium no
   disponible tras el montaje) y CSP sin conexiones de red.
 
+## Verificación y diagnóstico
+
+- **`verify`** no ejecuta el juego: valida manifiesto, formato, permisos,
+  lanzador, `app0/eboot.bin` y el cierre de dependencias del ejecutable y de
+  cada `.guest.prx`. Lee `DT_NEEDED` con `elfpatch.Needed` (PT_DYNAMIC), así
+  funciona con módulos sin section headers. En Windows, hasta que se implemente
+  el parser PE, usa `needed.json` y avisa de esa limitación.
+- **`diagnose`** lanza el ejecutable en su propio grupo de procesos, captura
+  stdout/stderr durante N segundos y lo mata. `Analyze` clasifica el log:
+  `running`, `exited`, `crashed`, `missing-libraries` o `no-window`, y extrae
+  librerías/ficheros ausentes, `NotImplemented`, fatales y avisos de red. La
+  ventana detectada (`Swapchain created`) manda sobre una librería opcional
+  ausente: si el juego corre, el veredicto es `running` y la ausencia queda como
+  aviso.
+- **`build --diagnose`** encadena empaquetado y prueba; el manifiesto se
+  actualiza con `diagnosis` para que la GUI muestre el resultado.
+
 ## Decisiones
 
 - **Go y cero dependencias externas**: un único binario, compilación cruzada

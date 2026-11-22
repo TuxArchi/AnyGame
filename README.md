@@ -25,6 +25,7 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 | Copia selectiva de librerías según `.needed.json` + dependencias | ✅ |
 | Cierre de dependencias de módulos convertidos y poda de `DT_NEEDED` sin imports | ✅ |
 | App de escritorio (biblioteca, conversión, runtimes, ajustes) | ✅ |
+| Verificación estática del paquete (`verify`) y prueba de arranque (`diagnose`) | ✅ |
 | Empaquetado: AppImage (Linux) y ZIP con `.exe` (Windows) | ✅ |
 | Lotes, catálogo de parches, perfiles por juego | ⏳ |
 
@@ -88,8 +89,10 @@ Abre el AppImage o `AnyGame.exe` y trabaja desde la biblioteca:
 2. **Games** → *Add game* y elige la carpeta extraída del título.
 3. Pulsa una portada → *Convert* (plataforma, carpeta de salida, recursos,
    parches) y sigue el log de conversión dentro de la app.
-4. *Play* lanza el juego; *Rebuild* lo reconvierte; la carpeta y el manifiesto
-   quedan a mano.
+4. *Play* lanza el juego; *Rebuild* lo reconvierte; *Test* ejecuta un arranque
+   de 15 s y analiza el log; *Verify* comprueba el paquete.
+5. La conversión puede lanzar la prueba automáticamente (casilla *Test after
+   conversion*).
 
 La app y la CLI comparten `library.json`, runtimes y ajustes bajo
 `~/.local/share/AnyGame` (Linux) o `%LOCALAPPDATA%\AnyGame` (Windows).
