@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"anygame/internal/anyps5"
+	"anygame/internal/elfpatch"
 	"anygame/internal/game"
 )
 
@@ -107,8 +108,18 @@ func Package(options Options) (*Result, error) {
 	}
 	result := &Result{Dir: options.OutputDir, Executable: filepath.Base(options.Executable)}
 	warnings := append([]string(nil), options.Warnings...)
+	needed := options.Needed
+	if options.Target == "linux" && options.NeededKnown {
+		dropped, notes, pruneErr := pruneUnusedDependencies(options.Executable, options.OutputDir, options.Runtime.LibsDir, needed)
+		if pruneErr != nil {
+			warnings = append(warnings, fmt.Sprintf("could not prune unused dependencies: %v", pruneErr))
+		} else if len(dropped) > 0 {
+			needed = removeNames(needed, dropped)
+			warnings = append(warnings, notes...)
+		}
+	}
 
-	libraries, libraryWarnings, err := copyLibraries(options.Runtime.LibsDir, options.Needed, options.NeededKnown, options.Target, options.OutputDir)
+	libraries, libraryWarnings, err := copyLibraries(options.Runtime.LibsDir, needed, options.NeededKnown, options.Target, options.OutputDir)
 	if err != nil {
 		return nil, err
 	}
@@ -204,12 +215,130 @@ func Package(options Options) (*Result, error) {
 	return result, nil
 }
 
+type registryEntry struct {
+	Library string `json:"library"`
+}
+
+// pruneUnusedDependencies drops DT_NEEDED entries that the relinker declared
+// but that no import uses and that no installed or bundled library provides.
+// It patches the main executable and every converted module in app0.
+func pruneUnusedDependencies(executable, outputDir, libsDir string, needed []string) ([]string, []string, error) {
+	stem := strings.TrimSuffix(executable, filepath.Ext(executable))
+	bundled := map[string]bool{}
+	app0 := filepath.Join(outputDir, "app0")
+	_ = filepath.WalkDir(app0, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() {
+			return nil
+		}
+		bundled[entry.Name()] = true
+		if strings.HasSuffix(entry.Name(), ".guest.prx") {
+			bundled[strings.TrimSuffix(entry.Name(), ".guest.prx")] = true
+		}
+		return nil
+	})
+
+	var dropped, notes []string
+	mainDropped, mainNotes, err := pruneOne(executable, stem+".registry.json", libsDir, bundled)
+	if err != nil {
+		return nil, nil, err
+	}
+	dropped = append(dropped, mainDropped...)
+	notes = append(notes, mainNotes...)
+
+	_ = filepath.WalkDir(app0, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		name := strings.ToLower(entry.Name())
+		if !strings.HasSuffix(name, ".prx") && !strings.HasSuffix(name, ".sprx") {
+			return nil
+		}
+		registry := filepath.Join(outputDir, filepath.Base(stem)+"."+entry.Name()+".registry.json")
+		if _, statErr := os.Stat(registry); statErr != nil {
+			return nil
+		}
+		_, moduleNotes, pruneErr := pruneOne(path, registry, libsDir, bundled)
+		if pruneErr != nil {
+			notes = append(notes, fmt.Sprintf("%s: %v", entry.Name(), pruneErr))
+			return nil
+		}
+		notes = append(notes, moduleNotes...)
+		return nil
+	})
+	return dropped, notes, nil
+}
+
+func pruneOne(file, registryPath, libsDir string, bundled map[string]bool) ([]string, []string, error) {
+	body, err := os.ReadFile(registryPath)
+	if err != nil {
+		return nil, nil, nil
+	}
+	var entries []registryEntry
+	if err := json.Unmarshal(body, &entries); err != nil {
+		return nil, nil, err
+	}
+	imports := map[string]bool{}
+	for _, entry := range entries {
+		if entry.Library != "" {
+			imports[entry.Library] = true
+		}
+	}
+	names, err := elfpatch.Needed(file)
+	if err != nil {
+		if errors.Is(err, elfpatch.ErrNotELF) {
+			return nil, nil, nil
+		}
+		return nil, nil, err
+	}
+	candidates := map[string]bool{}
+	for _, name := range names {
+		if name == "" || imports[name] || bundled[name] || !isRuntimeLibrary(name) {
+			continue
+		}
+		if strings.Contains(name, "$ORIGIN") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(libsDir, name)); err == nil {
+			continue
+		}
+		candidates[name] = true
+	}
+	if len(candidates) == 0 {
+		return nil, nil, nil
+	}
+	dropped, err := elfpatch.DropNeeded(file, candidates)
+	if err != nil {
+		return nil, nil, err
+	}
+	var notes []string
+	for _, name := range dropped {
+		notes = append(notes, fmt.Sprintf("ignored unused dependency %s in %s: declared but imported nowhere", name, filepath.Base(file)))
+	}
+	return dropped, notes, nil
+}
+
+func removeNames(values, remove []string) []string {
+	drop := map[string]bool{}
+	for _, name := range remove {
+		drop[name] = true
+	}
+	var result []string
+	for _, name := range values {
+		if !drop[name] {
+			result = append(result, name)
+		}
+	}
+	return result
+}
+
 func copyLibraries(libsDir string, needed []string, neededKnown bool, platform, outputDir string) ([]string, []string, error) {
 	destinationDir := filepath.Join(outputDir, "libs")
 	if err := os.MkdirAll(destinationDir, 0o755); err != nil {
 		return nil, nil, err
 	}
-	names, warnings, err := resolveClosure(libsDir, needed, neededKnown)
+	seeds := append([]string(nil), needed...)
+	seeds = append(seeds, bundledModuleDependencies(outputDir)...)
+	names, warnings, err := resolveClosure(libsDir, seeds, neededKnown)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -299,7 +428,50 @@ func resolveClosure(libsDir string, needed []string, neededKnown bool) ([]string
 	return result, warnings, nil
 }
 
+// bundledModuleDependencies lists the host libraries that the converted
+// modules in app0 import. The relinker's needed.json does not always include
+// them, so the package resolves them here as well.
+func bundledModuleDependencies(outputDir string) []string {
+	seen := map[string]bool{}
+	var result []string
+	app0 := filepath.Join(outputDir, "app0")
+	_ = filepath.WalkDir(app0, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() {
+			return nil
+		}
+		name := strings.ToLower(entry.Name())
+		if !strings.HasSuffix(name, ".prx") && !strings.HasSuffix(name, ".sprx") {
+			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		dependencies, err := importedLibraries(path)
+		if err != nil {
+			return nil
+		}
+		for _, dependency := range dependencies {
+			if dependency == "" || seen[dependency] {
+				continue
+			}
+			if strings.Contains(dependency, "$ORIGIN") || strings.Contains(dependency, "/") || strings.Contains(dependency, "\\") {
+				continue
+			}
+			if strings.HasSuffix(strings.ToLower(dependency), ".guest.prx") {
+				continue
+			}
+			seen[dependency] = true
+			result = append(result, dependency)
+		}
+		return nil
+	})
+	return result
+}
+
 func importedLibraries(path string) ([]string, error) {
+	if names, err := elfpatch.Needed(path); err == nil {
+		return names, nil
+	}
 	file, err := elf.Open(path)
 	if err != nil {
 		return nil, err

@@ -32,6 +32,7 @@ type Options struct {
 	WindowsGUI    bool
 	ToIntel       bool
 	FrameRedZone  bool
+	UnusedFilter  int
 	RPath         string
 	Extra         []string
 }
@@ -61,6 +62,9 @@ func (o *Options) Args() []string {
 	}
 	if o.Registry {
 		args = append(args, "--registry")
+	}
+	if o.UnusedFilter > 0 {
+		args = append(args, fmt.Sprintf("unused-filter=%d", o.UnusedFilter))
 	}
 	if o.DryRun {
 		args = append(args, "--dry-run")

@@ -69,9 +69,11 @@ Los metadatos salen de `sce_sys/param.json`; si no existe, de
 pasan al relinker automáticamente.
 
 Los módulos SELF se desenvuelven antes de convertir; no hace falta hacerlo a
-mano. Un volcado incompleto (por ejemplo, sin `Media/Metadata`) puede arrancar y
-fallar al cargar los datos de Unity: es un problema del volcado, no del
-pipeline.
+mano. El paquete incluye también las dependencias de los módulos convertidos y
+descarta entradas `DT_NEEDED` sin imports (por ejemplo, `UnityNpToolkit2.prx`).
+
+Un volcado incompleto (por ejemplo, sin `Media/Metadata`) puede arrancar y fallar
+al cargar los datos de Unity: es un problema del volcado, no del pipeline.
 
 ## Convertir y empaquetar
 

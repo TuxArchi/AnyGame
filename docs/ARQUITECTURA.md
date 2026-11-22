@@ -104,6 +104,14 @@ título necesita. AnyGame parte de esa lista y añade el cierre transitivo leyen
 
 - Lista conocida y vacía → no se copia ninguna librería.
 - Lista desconocida (sin `--registry`) → se copian todas, como red de seguridad.
+- Se añaden las dependencias de **todos los módulos convertidos** de `app0/`
+  leyendo su `PT_DYNAMIC` (aunque no tengan section headers). Sin esto, un
+  plugin como `PSN.prx` podía necesitar `libSceNpTrophy2.prx` y quedar sin
+  cargar.
+- Una entrada `DT_NEEDED` que no está en el runtime, no la aporta un módulo
+  convertido y no tiene **ningún import** en su registry se retagea como
+  `DT_SONAME`; el loader la ignora. Así se descartan dependencias fantasma como
+  `UnityNpToolkit2.prx`.
 - Windows → se añaden siempre `libgcc_s_seh-1.dll`, `libstdc++-6.dll` y
   `libwinpthread-1.dll`, que el runtime carga sin buscar en `PATH`.
 

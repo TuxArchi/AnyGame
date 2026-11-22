@@ -36,6 +36,7 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	skipModules := flags.Bool("skip-modules", false, "convert without bundled guest modules")
 	windowsGUI := flags.Bool("windows-gui", false, "Windows: build a GUI-subsystem executable")
 	toIntel := flags.Bool("to-intel", false, "convert AMD-only instructions for Intel CPUs")
+	unusedFilter := flags.Int("unused-filter", 0, "drop unused imports: 0 keep, 1 non-PLT, 2 strict")
 	keepWork := flags.Bool("keep-work", false, "keep the conversion work directory")
 	dryRun := flags.Bool("dry-run", false, "plan the conversion without writing the package")
 	jsonOut := flags.Bool("json", false, "print JSON")
@@ -204,6 +205,7 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		SkipModules:   *skipModules,
 		WindowsGUI:    *windowsGUI,
 		ToIntel:       *toIntel,
+		UnusedFilter:  *unusedFilter,
 		RPath:         "$ORIGIN/libs",
 		DryRun:        *dryRun,
 	}

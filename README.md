@@ -23,6 +23,7 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 | Paquete Linux (ELF, `libs/`, `app0/`, `run.sh`, `.desktop`) | ✅ |
 | Paquete Windows (PE, `libs/`, `app0/`, `run.bat`) | ✅ |
 | Copia selectiva de librerías según `.needed.json` + dependencias | ✅ |
+| Cierre de dependencias de módulos convertidos y poda de `DT_NEEDED` sin imports | ✅ |
 | App de escritorio (biblioteca, conversión, runtimes, ajustes) | ✅ |
 | Empaquetado: AppImage (Linux) y ZIP con `.exe` (Windows) | ✅ |
 | Lotes, catálogo de parches, perfiles por juego | ⏳ |
