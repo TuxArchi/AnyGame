@@ -173,6 +173,25 @@ Configura la fuente en **Settings → Patch catalog** (URL, repo de GitHub o
 carpeta local) o con `ANYGAME_PATCH_CATALOG`. El catálogo incluido está vacío: no
 se distribuyen parches de terceros.
 
+## Ajustes por juego
+
+En la ficha (clic derecho) → **Game settings**:
+
+| Campo | Variable | Nota |
+|---|---|---|
+| FPS limit | `ANYPS5_FPS_LIMIT` | Limita la presentación; no desbloquea FPS |
+| Output resolution | `APS5_OUTPUT_RESOLUTION` | Solo cambia lo que el juego cree que es el modo de salida |
+| Upscaling | `ANYPS5_UPSCALE` | Bilineal u FSR 1 |
+| FSR sharpness | `ANYPS5_FSR_SHARPNESS` | 0.0–2.0, solo con FSR |
+| Present mode | `ANYPS5_PRESENT_MODE` | fifo, mailbox, immediate, fifo_latest_ready |
+| Texture cache | `APS5_TEXTURE_CACHE_MIB` | Presupuesto de VRAM en MiB |
+| GPU filter | `ANYPS5_GPU` | Subcadena del nombre del dispositivo |
+| Fullscreen | `ANYPS5_FULLSCREEN` | On/Off/heredar |
+
+Los ajustes se guardan por juego en `library.json` y se aplican al lanzar desde
+AnyGame. No cambian los ficheros del juego. Para cambiar la resolución interna
+o desbloquear FPS hace falta un parche del catálogo y reconstruir el paquete.
+
 ## GitHub y comunidad
 
 **Community** permite iniciar sesión sin contraseña:

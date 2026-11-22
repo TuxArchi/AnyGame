@@ -551,6 +551,14 @@ function openDrawer(game) {
           </div>
           <div class="patch-list" id="patch-list"><div class="patch-empty">Loading catalog…</div></div>
         </div>
+        <div class="patch-block">
+          <div class="patch-head">
+            <span class="panel-icon">${icon('settings', 16)}</span>
+            <div><h3>Game settings</h3><p id="game-settings-summary">${escapeHtml(profileSummary(game.launchProfile))}</p></div>
+            <span class="spacer"></span>
+            <button class="btn small" id="game-settings">Configure</button>
+          </div>
+        </div>
         <div class="detail-list">
           <div class="detail-row"><span class="key">Source</span><span class="value mono">${escapeHtml(game.gamePath || '—')}</span></div>
           <div class="detail-row"><span class="key">Package</span><span class="value mono">${escapeHtml(game.packagePath || 'not converted yet')}</span></div>
@@ -585,6 +593,7 @@ function openDrawer(game) {
     state.patchCache.delete(`${game.id}|${state.settings.patchCatalog || ''}`);
     renderPatchSection(game, root);
   });
+  $('#game-settings', root)?.addEventListener('click', () => openGameSettings(game));
   renderPatchSection(game, root);
   $('#drawer-remove', root).addEventListener('click', () => {
     if (state.settings.confirmRemove === false) removeGame(game);
@@ -846,7 +855,7 @@ function openConvert(game) {
 /* Generic job modal                                                   */
 /* ------------------------------------------------------------------ */
 
-function runJob({ title, subtitle, args, cwd, onSuccess, successText }) {
+function runJob({ title, subtitle, args, cwd, profile, onSuccess, successText }) {
   const html = `
     <div class="modal-head">
       <div>
@@ -919,7 +928,7 @@ function runJob({ title, subtitle, args, cwd, onSuccess, successText }) {
   const off = api.cli.onEvent(handle);
   const cleanup = () => { off(); };
 
-  api.cli.start({ args, cwd }).then(({ id: jobId }) => {
+  api.cli.start({ args, cwd, profile }).then(({ id: jobId }) => {
     id = jobId;
     for (const event of buffer) handle(event);
     buffer = [];
@@ -973,6 +982,121 @@ function closeModal(force = false) {
 /* Actions                                                             */
 /* ------------------------------------------------------------------ */
 
+function profileSummary(profile) {
+  if (!profile || Object.keys(profile).length === 0) return 'Using global defaults';
+  const parts = [];
+  if (profile.outputResolution) parts.push(profile.outputResolution);
+  if (profile.fpsLimit) parts.push(`${profile.fpsLimit} FPS`);
+  if (profile.upscale === 'fsr') parts.push('FSR' + (profile.fsrSharpness != null ? ` ${profile.fsrSharpness}` : ''));
+  if (profile.upscale === 'off') parts.push('Bilinear');
+  if (profile.presentMode) parts.push(profile.presentMode === 'default' ? 'fifo' : profile.presentMode);
+  if (profile.textureCacheMib) parts.push(`${profile.textureCacheMib} MiB cache`);
+  if (profile.gpu) parts.push(profile.gpu);
+  if (profile.fullscreen) parts.push(profile.fullscreen === 'on' ? 'Fullscreen' : 'Windowed');
+  return parts.length ? parts.join(' · ') : 'Using global defaults';
+}
+
+function openGameSettings(game) {
+  const profile = game.launchProfile || {};
+  const option = (value, current) => value === current ? 'selected' : '';
+  openModal(`
+    <div class="modal-head">
+      <div><h3>Game settings</h3><p>${escapeHtml(game.name)} · applied when this game is launched</p></div>
+      <span class="spacer"></span>
+      <button class="btn icon ghost" data-modal-close>${icon('x', 16)}</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>FPS limit</label>
+          <input type="text" id="gs-fps" value="${escapeAttr(profile.fpsLimit ?? '')}" placeholder="unlimited" spellcheck="false">
+          <span class="hint">Caps presentation; it does not unlock FPS.</span>
+        </div>
+        <div class="field">
+          <label>Output resolution</label>
+          <input type="text" id="gs-resolution" value="${escapeAttr(profile.outputResolution || '')}" placeholder="auto (game / display)" spellcheck="false">
+          <span class="hint">Reported to the game; internal render changes need a patch.</span>
+        </div>
+        <div class="field">
+          <label>Upscaling</label>
+          <select id="gs-upscale">
+            <option value="" ${option('', profile.upscale || '')}>Inherit</option>
+            <option value="off" ${option('off', profile.upscale)}>Bilinear (off)</option>
+            <option value="fsr" ${option('fsr', profile.upscale)}>AMD FSR 1</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>FSR sharpness</label>
+          <input type="number" id="gs-sharpness" min="0" max="2" step="0.1" value="${escapeAttr(profile.fsrSharpness ?? '')}" placeholder="0.2">
+          <span class="hint">0.0 sharpest, 2.0 weakest.</span>
+        </div>
+        <div class="field">
+          <label>Present mode</label>
+          <select id="gs-present">
+            <option value="" ${option('', profile.presentMode || '')}>Inherit (fifo)</option>
+            <option value="default" ${option('default', profile.presentMode)}>fifo</option>
+            <option value="mailbox" ${option('mailbox', profile.presentMode)}>mailbox</option>
+            <option value="immediate" ${option('immediate', profile.presentMode)}>immediate</option>
+            <option value="fifo_latest_ready" ${option('fifo_latest_ready', profile.presentMode)}>fifo_latest_ready</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Texture cache (MiB)</label>
+          <input type="number" id="gs-texture" min="128" max="1048576" step="128" value="${escapeAttr(profile.textureCacheMib ?? '')}" placeholder="auto">
+        </div>
+        <div class="field">
+          <label>GPU filter</label>
+          <input type="text" id="gs-gpu" value="${escapeAttr(profile.gpu || '')}" placeholder="inherit global" spellcheck="false">
+        </div>
+        <div class="field">
+          <label>Fullscreen</label>
+          <select id="gs-fullscreen">
+            <option value="" ${option('', profile.fullscreen || '')}>Inherit</option>
+            <option value="on" ${option('on', profile.fullscreen)}>On</option>
+            <option value="off" ${option('off', profile.fullscreen)}>Off</option>
+          </select>
+        </div>
+      </div>
+      <div class="drawer-note" style="margin-top:14px">
+        These switch AnyPS5 environment variables at launch. They never modify the game files;
+        resolution/FPS unlocks still require a patch and a rebuild.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="gs-reset">Reset</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" data-modal-close>Cancel</button>
+      <button class="btn primary" id="gs-save">${icon('check', 15)} Save</button>
+    </div>`);
+  const sharpness = $('#gs-sharpness');
+  const syncSharpness = () => { sharpness.disabled = $('#gs-upscale').value !== 'fsr'; };
+  $('#gs-upscale').addEventListener('change', syncSharpness);
+  syncSharpness();
+  const save = async (value) => {
+    try {
+      const updated = await api.library.update({ id: game.id, launchProfile: value });
+      Object.assign(game, updated);
+      closeModal();
+      const summary = $('#game-settings-summary');
+      if (summary) summary.textContent = profileSummary(game.launchProfile);
+      toast(value && Object.keys(value).length ? 'Game settings saved' : 'Game settings reset', '', 'ok');
+    } catch (error) {
+      toast('Invalid game settings', error.message, 'err', 6000);
+    }
+  };
+  $('#gs-save').addEventListener('click', () => save({
+    fpsLimit: $('#gs-fps').value,
+    outputResolution: $('#gs-resolution').value,
+    upscale: $('#gs-upscale').value,
+    fsrSharpness: $('#gs-sharpness').value,
+    presentMode: $('#gs-present').value,
+    textureCacheMib: $('#gs-texture').value,
+    gpu: $('#gs-gpu').value,
+    fullscreen: $('#gs-fullscreen').value,
+  }));
+  $('#gs-reset').addEventListener('click', () => save({}));
+}
+
 function diagnosisLabel(verdict) {
   switch (verdict) {
     case 'running': return 'Runs (window)';
@@ -991,6 +1115,7 @@ function runDiagnose(game) {
     title: `Testing ${game.name}`,
     subtitle: `15 seconds · ${game.packagePath}`,
     args: ['diagnose', game.packagePath, '--seconds', '15'],
+    profile: game.launchProfile || {},
     successText: 'Diagnosis finished',
     onSuccess: async () => { await refreshLibrary(true); },
   });

@@ -28,6 +28,7 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 | Verificación estática del paquete (`verify`) y prueba de arranque (`diagnose`) | ✅ |
 | Catálogo de parches AnyPS5 (TOML) en la ficha del juego | ✅ |
 | Login de GitHub en la app (Device Flow + PAT) | ✅ |
+| Ajustes de rendimiento por juego (resolución, FPS, FSR, present mode…) | ✅ |
 | Empaquetado: AppImage (Linux) y ZIP con `.exe` (Windows) | ✅ |
 | Lotes, catálogo de parches, perfiles por juego | ⏳ |
 
@@ -132,6 +133,23 @@ terceros. `ANYGAME_PATCH_CATALOG` permite fijar la fuente sin tocar Ajustes.
 Formato: `index.json` con `format: 1`, entradas con `titleId`,
 `contentVersion`, `patch` y `targets` (SHA-256), y parches TOML de AnyPS5. Las
 descargas se guardan en `ANYGAME_HOME/cache/patch-catalog`.
+
+## Ajustes por juego
+
+La ficha del juego (clic derecho) incluye **Game settings**:
+
+- límite de FPS (`ANYPS5_FPS_LIMIT`);
+- resolución reportada (`APS5_OUTPUT_RESOLUTION`);
+- upscaling bilineal/FSR y nitidez (`ANYPS5_UPSCALE`, `ANYPS5_FSR_SHARPNESS`);
+- modo de presentación (`ANYPS5_PRESENT_MODE`);
+- caché de texturas (`APS5_TEXTURE_CACHE_MIB`);
+- filtro de GPU (`ANYPS5_GPU`);
+- fullscreen (`ANYPS5_FULLSCREEN`).
+
+Se guardan por juego en `library.json` (`launchProfile`) y se aplican al
+**Play** y al **Diagnose** desde la app, sin recompilar. No modifican el juego:
+la resolución interna y los FPS reales siguen dependiendo de un **parche** y de
+reconvertir. Los campos vacíos heredan el ajuste global.
 
 ## Login de GitHub
 

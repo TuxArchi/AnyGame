@@ -125,6 +125,68 @@ function cliEnv(extra = {}) {
   return env;
 }
 
+function sanitizeProfile(input) {
+  if (!input || typeof input !== 'object') return {};
+  const result = {};
+  const text = (value) => String(value == null ? '' : value).trim();
+  const fps = text(input.fpsLimit);
+  if (fps) {
+    if (!/^\d+(\.\d{1,3})?$/.test(fps)) throw new Error('FPS limit must be a number with at most three decimals');
+    const value = Number(fps);
+    if (!(value >= 0.5 && value <= 1000000)) throw new Error('FPS limit must be between 0.5 and 1000000');
+    result.fpsLimit = value;
+  }
+  const resolution = text(input.outputResolution);
+  if (resolution) {
+    const match = resolution.match(/^([0-9]{3,5})x([0-9]{3,5})$/i);
+    if (!match) throw new Error('Resolution must look like 1920x1080');
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    if (width > 16384 || height > 16384 || width < 320 || height < 200) throw new Error('Resolution is out of range');
+    result.outputResolution = `${width}x${height}`;
+  }
+  const upscale = text(input.upscale);
+  if (upscale === 'off' || upscale === 'fsr') result.upscale = upscale;
+  const sharpness = text(input.fsrSharpness);
+  if (sharpness) {
+    const value = Number(sharpness);
+    if (!Number.isFinite(value) || value < 0 || value > 2) throw new Error('FSR sharpness must be between 0.0 and 2.0');
+    result.fsrSharpness = value;
+  }
+  const present = text(input.presentMode);
+  if (['default', 'mailbox', 'immediate', 'fifo_latest_ready'].includes(present)) result.presentMode = present;
+  const texture = text(input.textureCacheMib);
+  if (texture) {
+    const value = Number(texture);
+    if (!Number.isInteger(value) || value < 128 || value > 1048576) throw new Error('Texture cache must be a whole number from 128 to 1048576 MiB');
+    result.textureCacheMib = value;
+  }
+  const gpu = text(input.gpu);
+  if (gpu) {
+    if (gpu.length > 128) throw new Error('GPU filter is too long');
+    result.gpu = gpu;
+  }
+  const fullscreen = text(input.fullscreen);
+  if (fullscreen === 'on' || fullscreen === 'off') result.fullscreen = fullscreen;
+  return result;
+}
+
+function profileEnv(profile) {
+  const env = {};
+  if (!profile) return env;
+  if (profile.fpsLimit != null) env.ANYPS5_FPS_LIMIT = String(profile.fpsLimit);
+  if (profile.outputResolution) env.APS5_OUTPUT_RESOLUTION = profile.outputResolution;
+  if (profile.upscale === 'fsr') env.ANYPS5_UPSCALE = 'fsr';
+  if (profile.upscale === 'off') env.ANYPS5_UPSCALE = '';
+  if (profile.fsrSharpness != null && profile.upscale === 'fsr') env.ANYPS5_FSR_SHARPNESS = String(profile.fsrSharpness);
+  if (profile.presentMode) env.ANYPS5_PRESENT_MODE = profile.presentMode === 'default' ? '' : profile.presentMode;
+  if (profile.textureCacheMib != null) env.APS5_TEXTURE_CACHE_MIB = String(profile.textureCacheMib);
+  if (profile.gpu) env.ANYPS5_GPU = profile.gpu;
+  if (profile.fullscreen === 'on') env.ANYPS5_FULLSCREEN = '1';
+  if (profile.fullscreen === 'off') env.ANYPS5_FULLSCREEN = '0';
+  return env;
+}
+
 function runCli(args, options = {}) {
   return new Promise((resolve) => {
     const child = spawn(CLI, args, {
@@ -358,6 +420,7 @@ ipcMain.handle('library:update', async (_event, patch) => {
   if (!game) throw new Error('game not found');
   const allowed = ['name', 'packagePath', 'target', 'lastBuiltAt', 'runtime', 'notes', 'selectedPatch'];
   for (const key of allowed) if (key in patch) game[key] = patch[key];
+  if ('launchProfile' in patch) game.launchProfile = sanitizeProfile(patch.launchProfile);
   await saveLibrary(data);
   return decorate(game);
 });
@@ -396,9 +459,11 @@ ipcMain.handle('cli:run', async (_event, payload = {}) => {
 ipcMain.handle('cli:start', async (_event, payload = {}) => {
   if (!Array.isArray(payload.args)) throw new Error('invalid arguments');
   const id = String(++jobCounter);
+  const childEnv = cliEnv(payload.env);
+  if (payload.profile) Object.assign(childEnv, profileEnv(payload.profile));
   const child = spawn(CLI, payload.args, {
     cwd: payload.cwd || undefined,
-    env: cliEnv(payload.env),
+    env: childEnv,
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -466,6 +531,7 @@ ipcMain.handle('game:play', async (_event, id) => {
   const current = settings();
   const env = cliEnv();
   if (current.fullscreen) env.ANYPS5_FULLSCREEN = '1';
+  Object.assign(env, profileEnv(game.launchProfile));
   const logPath = path.join(game.packagePath, 'anygame-run.log');
   let logFd = null;
   try {

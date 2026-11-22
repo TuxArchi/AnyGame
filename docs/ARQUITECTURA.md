@@ -200,6 +200,23 @@ script original: la salida es **idéntica byte a byte**.
   o el ZIP Windows. El AppImage usa `--no-sandbox` (sandbox de Chromium no
   disponible tras el montaje) y CSP sin conexiones de red.
 
+## Ajustes por juego
+
+`library.json` guarda `launchProfile` por juego. `ui/main.js` valida los valores
+(`sanitizeProfile`) y los traduce a variables de AnyPS5 (`profileEnv`):
+
+- `fpsLimit` → `ANYPS5_FPS_LIMIT`
+- `outputResolution` → `APS5_OUTPUT_RESOLUTION`
+- `upscale`/`fsrSharpness` → `ANYPS5_UPSCALE`/`ANYPS5_FSR_SHARPNESS`
+- `presentMode` → `ANYPS5_PRESENT_MODE`
+- `textureCacheMib` → `APS5_TEXTURE_CACHE_MIB`
+- `gpu` → `ANYPS5_GPU`
+- `fullscreen` → `ANYPS5_FULLSCREEN`
+
+Se aplican en `game:play` y en los jobs `cli:start` que llevan `profile`
+(Diagnose). Los valores no tocan los archivos del juego; los cambios internos de
+resolución/FPS siguen siendo parches del catálogo.
+
 ## Login de GitHub
 
 `ui/github.js` corre en el proceso principal:
