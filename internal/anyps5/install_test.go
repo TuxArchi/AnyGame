@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -55,6 +56,7 @@ func releaseServer(t *testing.T, relinker, libs []byte) *httptest.Server {
 			"html_url": server.URL + "/release",
 			"assets": []map[string]any{
 				{"name": "relinker-v9.9.9", "size": len(relinker), "digest": sum(relinker), "browser_download_url": server.URL + "/assets/relinker"},
+				{"name": "relinker-v9.9.9.exe", "size": len(relinker), "digest": sum(relinker), "browser_download_url": server.URL + "/assets/relinker"},
 				{"name": "prx-linux-v9.9.9.tar.gz", "size": len(libs), "digest": sum(libs), "browser_download_url": server.URL + "/assets/libs"},
 			},
 		}
@@ -89,12 +91,16 @@ func TestInstallWritesRuntimeAndState(t *testing.T) {
 	if result.Version != "9.9.9" || result.AlreadyInstalled {
 		t.Fatalf("unexpected result: %#v", result)
 	}
-	relinkerPath := filepath.Join(home, "runtimes", "9.9.9", "linux", "bin", "relinker")
+	relinkerName := "relinker"
+	if runtime.GOOS == "windows" {
+		relinkerName = "relinker.exe"
+	}
+	relinkerPath := filepath.Join(home, "runtimes", "9.9.9", "linux", "bin", relinkerName)
 	info, err := os.Stat(relinkerPath)
 	if err != nil {
 		t.Fatalf("relinker: %v", err)
 	}
-	if info.Mode().Perm()&0o111 == 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o111 == 0 {
 		t.Fatalf("relinker is not executable: %v", info.Mode())
 	}
 	if _, err := os.Stat(filepath.Join(home, "runtimes", "9.9.9", "linux", "libs", "libkernel.prx")); err != nil {
@@ -137,6 +143,7 @@ func TestInstallRejectsBadChecksum(t *testing.T) {
 			"tag_name": "v9.9.9",
 			"assets": []map[string]any{
 				{"name": "relinker-v9.9.9", "size": len(relinker), "digest": sum(relinker), "browser_download_url": server.URL + "/broken"},
+				{"name": "relinker-v9.9.9.exe", "size": len(relinker), "digest": sum(relinker), "browser_download_url": server.URL + "/broken"},
 				{"name": "prx-linux-v9.9.9.tar.gz", "size": len(libs), "digest": sum(libs), "browser_download_url": server.URL + "/libs"},
 			},
 		}

@@ -23,7 +23,7 @@ jobs:
         run: go run ./tools/package -version "${GITHUB_REF_NAME#v}"
 
       - name: Checksums
-        run: sha256sum dist/*.AppImage dist/*.zip | tee dist/SHA256SUMS
+        run: cd dist && sha256sum AnyGame-*.AppImage AnyGame-*.zip | tee SHA256SUMS
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -34,6 +34,8 @@ jobs:
             dist/*.zip
             dist/SHA256SUMS
           generate_release_notes: false
+          overwrite_files: true
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false
           make_latest: true

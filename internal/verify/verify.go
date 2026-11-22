@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"anygame/internal/elfpatch"
@@ -142,7 +143,7 @@ func (r *Report) checkExecutable(path, target string) {
 	default:
 		r.add("format", StatusFail, "executable is neither ELF nor PE")
 	}
-	if target != "windows" && info.Mode().Perm()&0o111 == 0 {
+	if target != "windows" && runtime.GOOS != "windows" && info.Mode().Perm()&0o111 == 0 {
 		r.add("permissions", StatusFail, "executable is not executable; run chmod +x")
 	}
 }
@@ -163,7 +164,7 @@ func (r *Report) checkLauncher(dir, target string) {
 		r.add("launcher", StatusWarn, "run.sh is missing")
 		return
 	}
-	if info.Mode().Perm()&0o111 == 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o111 == 0 {
 		r.add("launcher", StatusWarn, "run.sh is not executable")
 		return
 	}
