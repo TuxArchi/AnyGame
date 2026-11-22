@@ -321,7 +321,10 @@ func copyApp(root, destination string) error {
 	if err := copyDir(filepath.Join(source, "renderer"), filepath.Join(destination, "renderer")); err != nil {
 		return err
 	}
-	return copyDir(filepath.Join(source, "assets"), filepath.Join(destination, "assets"))
+	if err := copyDir(filepath.Join(source, "assets"), filepath.Join(destination, "assets")); err != nil {
+		return err
+	}
+	return copyDir(filepath.Join(source, "patches"), filepath.Join(destination, "patches"))
 }
 
 func desktopEntry() string {

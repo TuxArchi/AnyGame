@@ -149,6 +149,30 @@ muestra.
 
 `build --diagnose --diagnose-seconds 15` hace la prueba al terminar de empaquetar.
 
+## Parches de la comunidad
+
+```sh
+anygame patches /juegos/PPSA01234 --catalog /ruta/al/catalogo
+anygame patches /juegos/PPSA01234 --catalog https://github.com/usuario/repo --json
+```
+
+El catálogo debe tener `index.json` (`format: 1`) y ficheros TOML de AnyPS5.
+AnyGame:
+
+- filtra por `titleId` y `contentVersion`;
+- comprueba el SHA-256 de los ficheros objetivo (desenvolviendo SELF cuando
+  hace falta, porque el catálogo guarda el hash del fichero ya desenvuelto);
+- descarga el TOML a `<data>/cache/patch-catalog`;
+- marca cada entrada como compatible o incompatible con el motivo.
+
+En la GUI, la sección **Community patches** de la ficha permite seleccionar uno
+(radio) o *No patch*. La selección se guarda en `library.json` y la siguiente
+conversión pasa `--patches <archivo>`. Solo se aplica un parche a la vez.
+
+Configura la fuente en **Settings → Patch catalog** (URL, repo de GitHub o
+carpeta local) o con `ANYGAME_PATCH_CATALOG`. El catálogo incluido está vacío: no
+se distribuyen parches de terceros.
+
 ## Ejecutar
 
 ```sh

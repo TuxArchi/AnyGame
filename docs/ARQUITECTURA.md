@@ -200,6 +200,23 @@ script original: la salida es **idéntica byte a byte**.
   o el ZIP Windows. El AppImage usa `--no-sandbox` (sandbox de Chromium no
   disponible tras el montaje) y CSP sin conexiones de red.
 
+## Catálogo de parches
+
+`internal/patches` lee `index.json` (`format: 1`) desde una carpeta, una URL, un
+repositorio de GitHub o una URL `tree/rama/ruta`. Filtra por `titleId` y
+`contentVersion`, descarga cada TOML a la caché y valida los `targets`:
+
+- `targets` son rutas relativas a la raíz del dump y hashes SHA-256.
+- Un SELF se desenvuelve antes de hashear, porque el catálogo guarda el hash del
+  fichero que recibe el relinker.
+- Si un hash no coincide, el parche se muestra como incompatible y no se puede
+  seleccionar.
+- La selección se guarda en `library.json` (`selectedPatch`) y `build` la pasa
+  como `--patches`; el relinker vuelve a comprobar `expected`/`value` y rangos.
+
+El catálogo por defecto es `ui/patches` (vacío). La app lo incluye en
+`resources/app/patches` y cualquier otra fuente se configura en Ajustes.
+
 ## Verificación y diagnóstico
 
 - **`verify`** no ejecuta el juego: valida manifiesto, formato, permisos,

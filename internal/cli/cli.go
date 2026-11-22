@@ -50,6 +50,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return runVerify(rest, stdout, stderr)
 	case "diagnose":
 		return runDiagnose(rest, stdout, stderr)
+	case "patches":
+		return runPatches(ctx, rest, stdout, stderr)
 	case "run":
 		return runGame(ctx, rest, stdout, stderr)
 	case "doctor":
@@ -74,6 +76,7 @@ Commands:
   build       Convert a title and assemble a runnable package
   verify      Check that a converted package is complete
   diagnose    Launch a package briefly and analyze its log
+  patches     List community patches for a title
   run         Launch a converted package
   unwrap      Unwrap a decrypted SELF container into a clean ELF
   doctor      Check host prerequisites

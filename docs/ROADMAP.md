@@ -13,13 +13,13 @@
 - [x] `doctor` con CPU, Vulkan y udmabuf.
 - [x] Tests unitarios de SELF, SFO, descubrimiento, args y empaquetado.
 
-## Fase 2 — Producto utilizable (siguiente)
+## Fase 2 — Producto utilizable
 
 - [ ] `build --batch <dir>`: convertir varios títulos con un informe resumen.
 - [ ] Perfiles por título (`profiles/<titleId>.toml`): opciones de build,
       variables `ANYPS5_*`, parches y argumentos extra.
-- [ ] Catálogo de parches: integrar `suggest_patches.py`/`verify-patches` y
-      aplicar parches comunitarios con hash y versión.
+- [x] Catálogo de parches AnyPS5: filtro por título/versión, hashes SHA-256,
+      selección en la ficha y `--patches` al convertir.
 - [ ] `anygame verify <paquete>`: comprobar layout, librerías, `needed.json`,
       manifiesto y enlaces antes de lanzar.
 - [ ] `anygame export <paquete> --zip`: paquete comprimido reproducible.

@@ -78,6 +78,7 @@ const state = {
   search: '',
   sort: 'name',
   filterTarget: 'all',
+  patchCache: new Map(),
   jobHandlers: new Map(),
   booted: false,
 };
@@ -523,6 +524,15 @@ function openDrawer(game) {
           <button class="btn icon" id="drawer-test" title="Run a diagnostic" ${game.status === 'ready' ? '' : 'disabled'}>${icon('terminal', 16)}</button>
           <button class="btn icon" id="drawer-folder" title="Open folder">${icon('folder', 16)}</button>
         </div>
+        <div class="patch-block">
+          <div class="patch-head">
+            <span class="panel-icon">${icon('spark', 16)}</span>
+            <div><h3>Community patches</h3><p>AnyPS5 catalog entries for this title and version.</p></div>
+            <span class="spacer"></span>
+            <button class="btn small" id="patch-refresh">${icon('refresh', 13)} Refresh</button>
+          </div>
+          <div class="patch-list" id="patch-list"><div class="patch-empty">Loading catalog…</div></div>
+        </div>
         <div class="detail-list">
           <div class="detail-row"><span class="key">Source</span><span class="value mono">${escapeHtml(game.gamePath || '—')}</span></div>
           <div class="detail-row"><span class="key">Package</span><span class="value mono">${escapeHtml(game.packagePath || 'not converted yet')}</span></div>
@@ -553,6 +563,11 @@ function openDrawer(game) {
   });
   $('#drawer-test', root)?.addEventListener('click', () => { closeDrawer(); runDiagnose(game); });
   $('#drawer-verify', root)?.addEventListener('click', () => { closeDrawer(); runVerify(game); });
+  $('#patch-refresh', root)?.addEventListener('click', () => {
+    state.patchCache.delete(`${game.id}|${state.settings.patchCatalog || ''}`);
+    renderPatchSection(game, root);
+  });
+  renderPatchSection(game, root);
   $('#drawer-remove', root).addEventListener('click', () => {
     if (state.settings.confirmRemove === false) removeGame(game);
     else confirmRemove(game);
@@ -563,6 +578,111 @@ function closeDrawer() {
   $('#drawer-root').innerHTML = '';
   state.selectedId = null;
   $$('.game-card').forEach((card) => card.classList.remove('selected'));
+}
+
+/* ------------------------------------------------------------------ */
+/* Community patches                                                    */
+/* ------------------------------------------------------------------ */
+
+async function renderPatchSection(game, root) {
+  const list = $('#patch-list', root);
+  if (!list) return;
+  const catalog = String(state.settings.patchCatalog || '').trim();
+  if (!catalog) {
+    list.innerHTML = `<div class="patch-empty">No patch catalog configured.<br><button class="btn small" id="patch-config">Open settings</button></div>`;
+    $('#patch-config', list)?.addEventListener('click', () => { closeDrawer(); setRoute('settings'); });
+    return;
+  }
+  const key = `${game.id}|${catalog}`;
+  const cached = state.patchCache.get(key);
+  if (cached) {
+    paintPatches(game, cached, list);
+    return;
+  }
+  list.innerHTML = `<div class="patch-empty"><span class="spinner" style="width:12px;height:12px;display:inline-block;vertical-align:-2px"></span> Reading catalog…</div>`;
+  try {
+    const result = await api.cli.run({
+      args: ['patches', game.gamePath, '--catalog', catalog, '--json'],
+      timeout: 180000,
+    });
+    if (result.code !== 0) throw new Error((result.stderr || result.stdout || 'catalog error').trim());
+    let data;
+    try { data = JSON.parse(result.stdout); } catch (error) { throw new Error('invalid catalog response: ' + error.message); }
+    state.patchCache.set(key, data);
+    if (list.isConnected) paintPatches(game, data, list);
+  } catch (error) {
+    if (list.isConnected) {
+      list.innerHTML = `<div class="patch-empty">Could not read the catalog:<br>${escapeHtml(error.message)}</div>`;
+    }
+  }
+}
+
+function paintPatches(game, data, list) {
+  if (!list || !data) return;
+  const catalog = String(state.settings.patchCatalog || '');
+  const matches = Array.isArray(data.matches) ? data.matches : [];
+  if (matches.length === 0) {
+    list.innerHTML = `<div class="patch-empty">No patches for ${escapeHtml(data.titleId || game.titleId || 'this title')} ${escapeHtml(data.contentVersion || game.contentVersion || '')}.<br><span style="font-size:10px">Catalog: ${escapeHtml(catalog)}</span></div>`;
+    return;
+  }
+  const selected = game.selectedPatch || null;
+  const isSelected = (match) => selected && ((match.id && selected.id === match.id) || (match.path && selected.path === match.path));
+  const rows = [];
+  rows.push(`
+    <label class="patch-row ${selected ? '' : 'selected'}">
+      <input type="radio" name="patch-choice" value="" ${selected ? '' : 'checked'}>
+      <div class="patch-copy">
+        <div class="patch-name">No patch</div>
+        <div class="patch-desc">Convert without a community patch.</div>
+      </div>
+    </label>`);
+  matches.forEach((match, index) => {
+    const active = isSelected(match);
+    const compatibility = match.compatible ? 'compatible' : escapeHtml(match.reason || 'incompatible');
+    const name = match.name || match.id || `Patch ${index + 1}`;
+    const meta = [match.id, (match.contributors || []).join(', '), match.tested && match.tested.length ? `${match.tested.length} test(s)` : ''].filter(Boolean).join(' · ');
+    rows.push(`
+      <label class="patch-row ${active ? 'selected' : ''} ${match.compatible ? '' : 'disabled'}">
+        <input type="radio" name="patch-choice" value="${index}" ${active ? 'checked' : ''} ${match.compatible ? '' : 'disabled'}>
+        <div class="patch-copy">
+          <div class="patch-name">${escapeHtml(name)} ${match.category ? `<span class="chip accent">${escapeHtml(match.category)}</span>` : ''}</div>
+          ${match.description ? `<div class="patch-desc">${escapeHtml(match.description)}</div>` : ''}
+          ${meta ? `<div class="patch-meta">${escapeHtml(meta)}</div>` : ''}
+        </div>
+        <span class="chip ${match.compatible ? 'ok' : 'err'} patch-state">${compatibility}</span>
+      </label>`);
+  });
+  list.innerHTML = rows.join('');
+  list.querySelectorAll('input[name="patch-choice"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      const index = input.value === '' ? null : Number(input.value);
+      selectPatch(game, index === null ? null : matches[index]);
+    });
+  });
+}
+
+async function selectPatch(game, match) {
+  const selected = match
+    ? {
+        id: match.id || match.patch,
+        name: match.name || match.patch,
+        path: match.path,
+        source: match.source || state.settings.patchCatalog,
+        patch: match.patch,
+        category: match.category || '',
+        compatible: Boolean(match.compatible),
+      }
+    : null;
+  try {
+    const updated = await api.library.update({ id: game.id, selectedPatch: selected });
+    Object.assign(game, updated);
+    toast(selected ? 'Patch selected' : 'Patch cleared', selected ? selected.name : '', 'ok', 2200);
+    const list = $('#patch-list');
+    const key = `${game.id}|${state.settings.patchCatalog || ''}`;
+    if (list && list.isConnected) paintPatches(game, state.patchCache.get(key), list);
+  } catch (error) {
+    toast('Could not save the patch selection', error.message, 'err', 6000);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -610,6 +730,10 @@ function openConvert(game) {
             <input type="text" id="convert-output" value="${escapeAttr(output)}" spellcheck="false">
             <button class="btn" id="convert-browse">${icon('folder', 15)} Browse</button>
           </div>
+        </div>
+        <div class="field full">
+          <label>Selected community patch</label>
+          <span class="hint">${game.selectedPatch ? escapeHtml(game.selectedPatch.name || game.selectedPatch.id) : 'None. Choose one from the game drawer.'}</span>
         </div>
         <div class="field full">
           <label>Patch file (optional)</label>
@@ -666,6 +790,13 @@ function openConvert(game) {
     const outputPath = $('#convert-output').value.trim();
     if (!outputPath) { toast('Choose an output folder', '', 'warn'); return; }
     const args = ['build', game.gamePath, '-o', outputPath, '--target', selectedTarget, '--resources', $('#convert-resources').value];
+    if (game.selectedPatch) {
+      if (!game.selectedPatch.compatible) {
+        toast('Selected patch is incompatible', 'Clear it in the game drawer or choose another.', 'warn', 5000);
+        return;
+      }
+      args.push('--patches', game.selectedPatch.path);
+    }
     const patches = $('#convert-patches').value.trim();
     if (patches) args.push('--patches', patches);
     if ($('#convert-no-patches').checked) args.push('--no-patches');
@@ -1050,6 +1181,8 @@ function renderSettings() {
               </select>`)}
             ${settingRow('Output root', 'Parent folder for new packages.', `
               <input type="text" data-setting="outputRoot" value="${escapeAttr(settings.outputRoot || '')}" spellcheck="false">`)}
+            ${settingRow('Patch catalog', 'URL, GitHub repo or folder with index.json (AnyPS5 format).', `
+              <input type="text" data-setting="patchCatalog" value="${escapeAttr(settings.patchCatalog || '')}" spellcheck="false">`)}
             ${settingRow('Confirm remove', 'Ask before removing an entry from the library.', `
               <label class="switch"><input type="checkbox" data-setting="confirmRemove" ${settings.confirmRemove ? 'checked' : ''}><span></span></label>`)}
           </div>
@@ -1110,6 +1243,7 @@ function wireSettingsInputs(root) {
       try {
         state.settings = await api.settings.save({ [key]: value });
         state.info.settings = state.settings;
+        if (key === 'patchCatalog') state.patchCache.clear();
         if (key === 'home') {
           state.info = await api.appInfo();
           await refreshLibrary(true);

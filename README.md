@@ -26,6 +26,7 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 | Cierre de dependencias de módulos convertidos y poda de `DT_NEEDED` sin imports | ✅ |
 | App de escritorio (biblioteca, conversión, runtimes, ajustes) | ✅ |
 | Verificación estática del paquete (`verify`) y prueba de arranque (`diagnose`) | ✅ |
+| Catálogo de parches AnyPS5 (TOML) en la ficha del juego | ✅ |
 | Empaquetado: AppImage (Linux) y ZIP con `.exe` (Windows) | ✅ |
 | Lotes, catálogo de parches, perfiles por juego | ⏳ |
 
@@ -112,12 +113,32 @@ PPSA01234/
 └── anygame.json           # manifiesto de la conversión
 ```
 
+## Parches de la comunidad
+
+La ficha del juego (clic izquierdo o derecho) incluye **Community patches**:
+
+1. Configura **Settings → Patch catalog** con una URL a `index.json`, una URL de
+   directorio, un repositorio de GitHub (`https://github.com/owner/repo`) o una
+   carpeta local con `index.json`.
+2. La app filtra por `titleId` + `contentVersion`, comprueba el SHA-256 de cada
+   fichero objetivo y marca el parche como **compatible** o incompatible.
+3. Selecciona **un** parche (AnyPS5 no combina parches) y aparecerá en
+   *Convert*. El relinker lo aplica con `--patches` y vuelve a validar cada byte.
+
+El catálogo incluido en `ui/patches/` está vacío: no se distribuyen parches de
+terceros. `ANYGAME_PATCH_CATALOG` permite fijar la fuente sin tocar Ajustes.
+
+Formato: `index.json` con `format: 1`, entradas con `titleId`,
+`contentVersion`, `patch` y `targets` (SHA-256), y parches TOML de AnyPS5. Las
+descargas se guardan en `ANYGAME_HOME/cache/patch-catalog`.
+
 ## Variables de entorno
 
 | Variable | Efecto |
 |---|---|
 | `ANYGAME_HOME` | Directorio de datos (runtimes, caché, estado). |
 | `GITHUB_TOKEN` | Sube el límite de la API de GitHub. |
+| `ANYGAME_PATCH_CATALOG` | Fuerza la fuente del catálogo de parches. |
 
 ## Licencia y aviso legal
 

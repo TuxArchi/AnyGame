@@ -603,6 +603,45 @@ a { color: var(--accent-2); text-decoration: none; }
 .drawer-actions { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; margin: 18px 0 6px; }
 .drawer-actions .btn.primary { height: 40px; }
 
+.patch-block {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+}
+.patch-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--line);
+}
+.patch-head h3 { margin: 0; font-size: 12.5px; font-weight: 700; }
+.patch-head p { margin: 2px 0 0; font-size: 10.5px; color: var(--faint); }
+.patch-head .spacer { flex: 1; }
+.patch-list { display: flex; flex-direction: column; gap: 5px; padding: 7px; }
+.patch-empty { padding: 12px 8px; color: var(--faint); font-size: 11.5px; line-height: 1.5; }
+.patch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.patch-row:hover { background: rgba(255, 255, 255, 0.04); }
+.patch-row.selected { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.1); }
+.patch-row.disabled { opacity: 0.5; cursor: not-allowed; }
+.patch-row input { margin-top: 2px; accent-color: var(--accent); flex: none; }
+.patch-copy { min-width: 0; flex: 1; }
+.patch-name { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650; flex-wrap: wrap; }
+.patch-desc { margin-top: 3px; color: var(--muted); font-size: 10.8px; line-height: 1.45; }
+.patch-meta { margin-top: 4px; color: var(--faint); font-size: 10px; }
+.patch-state { flex: none; }
+
 .detail-list { margin-top: 16px; display: flex; flex-direction: column; }
 .detail-row {
   display: flex;

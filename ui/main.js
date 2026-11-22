@@ -48,11 +48,20 @@ const CLI = resolveCli();
 const DEFAULT_HOME = defaultHome();
 const CONFIG_FILE = path.join(app.getPath('userData'), 'settings.json');
 
+function bundledCatalog() {
+  const candidate = path.join(__dirname, 'patches');
+  try {
+    if (fs.existsSync(path.join(candidate, 'index.json'))) return candidate;
+  } catch (_) {}
+  return '';
+}
+
 const DEFAULT_SETTINGS = {
   home: DEFAULT_HOME,
   target: isWindows ? 'windows' : 'linux',
   resources: 'link',
   outputRoot: path.join(os.homedir(), 'AnyGameGames'),
+  patchCatalog: '',
   gpu: '',
   fullscreen: false,
   confirmRemove: true,
@@ -82,13 +91,20 @@ async function writeJson(file, value) {
 }
 
 function settings() {
-  return { ...DEFAULT_SETTINGS, ...readJsonSync(CONFIG_FILE, {}) };
+  const current = { ...DEFAULT_SETTINGS, ...readJsonSync(CONFIG_FILE, {}) };
+  if (!current.patchCatalog) current.patchCatalog = bundledCatalog();
+  if (process.env.ANYGAME_PATCH_CATALOG) current.patchCatalog = process.env.ANYGAME_PATCH_CATALOG;
+  return current;
 }
 
 async function saveSettings(patch) {
   const next = { ...settings(), ...patch };
+  const bundled = bundledCatalog();
+  if (bundled && next.patchCatalog && path.resolve(next.patchCatalog) === path.resolve(bundled)) {
+    next.patchCatalog = '';
+  }
   await writeJson(CONFIG_FILE, next);
-  return next;
+  return { ...next, patchCatalog: next.patchCatalog || bundled };
 }
 
 function home() {
@@ -273,7 +289,7 @@ ipcMain.handle('app:info', async () => {
 
 ipcMain.handle('settings:save', async (_event, patch) => {
   if (!patch || typeof patch !== 'object') throw new Error('invalid settings');
-  const allowed = ['home', 'target', 'resources', 'outputRoot', 'gpu', 'fullscreen', 'confirmRemove'];
+  const allowed = ['home', 'target', 'resources', 'outputRoot', 'patchCatalog', 'gpu', 'fullscreen', 'confirmRemove'];
   const clean = {};
   for (const key of allowed) if (key in patch) clean[key] = patch[key];
   return saveSettings(clean);
@@ -332,7 +348,7 @@ ipcMain.handle('library:update', async (_event, patch) => {
   const data = await library();
   const game = data.games.find((item) => item.id === patch.id);
   if (!game) throw new Error('game not found');
-  const allowed = ['name', 'packagePath', 'target', 'lastBuiltAt', 'runtime', 'notes'];
+  const allowed = ['name', 'packagePath', 'target', 'lastBuiltAt', 'runtime', 'notes', 'selectedPatch'];
   for (const key of allowed) if (key in patch) game[key] = patch[key];
   await saveLibrary(data);
   return decorate(game);

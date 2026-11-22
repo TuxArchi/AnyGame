@@ -1,6 +1,7 @@
 # Build output
 /bin/
 /dist/
+/package
 
 # Work directory for this project (temporaries, reference checkouts, fixtures)
 /.work-tmp/
