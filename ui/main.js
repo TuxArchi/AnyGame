@@ -433,15 +433,26 @@ ipcMain.handle('game:play', async (_event, id) => {
   const current = settings();
   const env = cliEnv();
   if (current.fullscreen) env.ANYPS5_FULLSCREEN = '1';
+  const logPath = path.join(game.packagePath, 'anygame-run.log');
+  let logFd = null;
+  try {
+    logFd = fs.openSync(logPath, 'a');
+    fs.writeSync(logFd, `\n=== AnyGame run ${new Date().toISOString()} ===\n`);
+  } catch (_) {
+    logFd = null;
+  }
   const child = spawn(CLI, ['run', game.packagePath], {
     cwd: game.packagePath,
     env,
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', logFd ?? 'ignore', logFd ?? 'ignore'],
     windowsHide: false,
   });
   child.unref();
-  return { ok: true };
+  if (logFd !== null) {
+    try { fs.closeSync(logFd); } catch (_) {}
+  }
+  return { ok: true, log: logPath };
 });
 
 ipcMain.handle('shell:openPath', async (_event, target) => {

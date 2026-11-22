@@ -126,7 +126,7 @@ func moduleKind(path string) (string, error) {
 	defer file.Close()
 	header := make([]byte, 4)
 	if _, err := io.ReadFull(file, header); err != nil {
-		return "", err
+		return "other", nil
 	}
 	if bytes.Equal(header, []byte{0x7f, 'E', 'L', 'F'}) {
 		return "elf", nil

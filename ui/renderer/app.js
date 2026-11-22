@@ -523,6 +523,7 @@ function openDrawer(game) {
           <div class="detail-row"><span class="key">Built</span><span class="value">${escapeHtml(timeAgo(game.lastBuiltAt))}</span></div>
           <div class="detail-row"><span class="key">Added</span><span class="value">${escapeHtml(timeAgo(game.addedAt))}</span></div>
           ${manifest && Array.isArray(manifest.libraries) ? `<div class="detail-row"><span class="key">Libraries</span><span class="value">${manifest.libraries.length} system libraries</span></div>` : ''}
+          ${game.packagePath ? `<div class="detail-row"><span class="key">Run log</span><span class="value"><button class="btn small" id="drawer-log">${icon('terminal', 13)} Open log</button></span></div>` : ''}
         </div>
         ${warnings.length ? `<div class="drawer-note">${warnings.map((warning) => escapeHtml(warning)).join('<br>')}</div>` : ''}
         <div class="detail-row" style="margin-top:14px;border-top:1px solid rgba(255,255,255,.05)">
@@ -537,6 +538,9 @@ function openDrawer(game) {
   $('#drawer-folder', root).addEventListener('click', () => {
     const targetPath = game.packagePath || game.gamePath;
     api.shell.openPath(targetPath).catch((error) => toast('Could not open', error.message, 'err'));
+  });
+  $('#drawer-log', root)?.addEventListener('click', () => {
+    api.shell.openPath(`${game.packagePath}/anygame-run.log`).catch((error) => toast('No run log yet', error.message, 'warn'));
   });
   $('#drawer-remove', root).addEventListener('click', () => {
     if (state.settings.confirmRemove === false) removeGame(game);
