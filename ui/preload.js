@@ -33,6 +33,18 @@ contextBridge.exposeInMainWorld('anygame', {
     check: () => ipcRenderer.invoke('runtime:check'),
   },
   doctor: () => ipcRenderer.invoke('doctor'),
+  github: {
+    status: () => ipcRenderer.invoke('github:status'),
+    start: () => ipcRenderer.invoke('github:start'),
+    cancel: () => ipcRenderer.invoke('github:cancel'),
+    pat: (token) => ipcRenderer.invoke('github:pat', token),
+    logout: () => ipcRenderer.invoke('github:logout'),
+    onState: (callback) => {
+      const handler = (_event, message) => callback(message);
+      ipcRenderer.on('github:state', handler);
+      return () => ipcRenderer.removeListener('github:state', handler);
+    },
+  },
   game: {
     play: (id) => ipcRenderer.invoke('game:play', id),
   },

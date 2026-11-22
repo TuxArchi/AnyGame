@@ -7,6 +7,7 @@ const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
+const createGitHub = require('./github');
 
 const packageJson = require('./package.json');
 const isWindows = process.platform === 'win32';
@@ -62,6 +63,7 @@ const DEFAULT_SETTINGS = {
   resources: 'link',
   outputRoot: path.join(os.homedir(), 'AnyGameGames'),
   patchCatalog: '',
+  githubClientId: '',
   gpu: '',
   fullscreen: false,
   confirmRemove: true,
@@ -214,6 +216,12 @@ function send(channel, payload) {
   }
 }
 
+const github = createGitHub({
+  app,
+  getClientId: () => settings().githubClientId || process.env.ANYGAME_GITHUB_CLIENT_ID || '',
+  send: (payload) => send('github:state', payload),
+});
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1320,
@@ -289,7 +297,7 @@ ipcMain.handle('app:info', async () => {
 
 ipcMain.handle('settings:save', async (_event, patch) => {
   if (!patch || typeof patch !== 'object') throw new Error('invalid settings');
-  const allowed = ['home', 'target', 'resources', 'outputRoot', 'patchCatalog', 'gpu', 'fullscreen', 'confirmRemove'];
+  const allowed = ['home', 'target', 'resources', 'outputRoot', 'patchCatalog', 'githubClientId', 'gpu', 'fullscreen', 'confirmRemove'];
   const clean = {};
   for (const key of allowed) if (key in patch) clean[key] = patch[key];
   return saveSettings(clean);
@@ -433,6 +441,12 @@ ipcMain.handle('runtime:check', async () => {
   if (result.code !== 0) throw new Error((result.stderr || result.stdout).trim());
   try { return JSON.parse(result.stdout); } catch (_) { return []; }
 });
+
+ipcMain.handle('github:status', () => github.status());
+ipcMain.handle('github:start', () => github.start());
+ipcMain.handle('github:cancel', () => github.cancel());
+ipcMain.handle('github:pat', (_event, token) => github.pat(token));
+ipcMain.handle('github:logout', () => github.logout());
 
 ipcMain.handle('doctor', async () => {
   const result = await runCli(['doctor', '--json'], { timeout: 60000 });

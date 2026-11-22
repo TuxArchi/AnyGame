@@ -200,6 +200,20 @@ script original: la salida es **idéntica byte a byte**.
   o el ZIP Windows. El AppImage usa `--no-sandbox` (sandbox de Chromium no
   disponible tras el montaje) y CSP sin conexiones de red.
 
+## Login de GitHub
+
+`ui/github.js` corre en el proceso principal:
+
+- **Device Flow**: `login/device/code` → código para el usuario → polling a
+  `login/oauth/access_token`; maneja `authorization_pending`, `slow_down` y
+  caducidad.
+- **PAT**: valida con `GET /user`, guarda el token y devuelve solo el perfil.
+- **Token**: `safeStorage` (DPAPI/libsecret) en `github-auth.json`; si no hay
+  llavero, fichero 0600 y la UI lo indica.
+- **IPC**: `github:status/start/cancel/pat/logout` y eventos `github:state`.
+  El renderer nunca recibe el token.
+- Scope `public_repo`; el flujo de fork/PR se apoyará en estas llamadas.
+
 ## Catálogo de parches
 
 `internal/patches` lee `index.json` (`format: 1`) desde una carpeta, una URL, un

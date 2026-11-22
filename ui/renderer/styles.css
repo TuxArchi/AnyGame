@@ -915,6 +915,36 @@ a { color: var(--accent-2); text-decoration: none; }
 .about-logo { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45); }
 .about-hero h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
 .about-hero p { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; max-width: 560px; line-height: 1.55; }
+.community-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 16px; align-items: start; }
+.github-user { display: flex; align-items: center; gap: 14px; }
+.avatar { width: 54px; height: 54px; border-radius: 50%; border: 1px solid var(--line-strong); object-fit: cover; background: var(--panel-3); }
+.github-name { font-size: 15px; font-weight: 700; }
+.github-login { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.pat-box { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.pat-box input { width: 100%; }
+.device-code {
+  padding: 20px;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 14px;
+  background: rgba(139, 92, 246, 0.1);
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-align: center;
+  color: #e4dcff;
+  user-select: text;
+}
+.community-step { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: var(--muted); line-height: 1.45; }
+.community-step:last-child { border-bottom: 0; }
+.community-step strong { color: var(--text); font-size: 12.2px; }
+.step-number {
+  display: grid; place-items: center; flex: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent-soft); color: #d7c9ff;
+  font-size: 10px; font-weight: 800;
+}
+
 .version-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
 .version-cell { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: rgba(255, 255, 255, 0.025); }
 .version-cell .k { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }

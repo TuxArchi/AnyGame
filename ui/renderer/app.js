@@ -24,6 +24,7 @@ const ICONS = {
   package: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/>',
   gamepad: '<path d="M7.5 8.5h9a4.5 4.5 0 0 1 4.4 5.4l-.7 3.5a2.4 2.4 0 0 1-4 1.3l-1.6-1.4a2 2 0 0 0-1.3-.5h-2.6a2 2 0 0 0-1.3.5L8.8 18.7a2.4 2.4 0 0 1-4-1.3l-.7-3.5A4.5 4.5 0 0 1 7.5 8.5Z"/><path d="M8 11v3M6.5 12.5h3M15.5 11.5v.1M17.5 13.5v.1"/>',
   spark: '<path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/>',
+  github: '<path d="M12 3.2a8.8 8.8 0 0 0-2.8 17.1c.4.1.6-.2.6-.4v-1.6c-2.4.5-3-1.2-3-1.2-.4-1-1-1.3-1-1.3-.8-.6.1-.6.1-.6.9.1 1.4 1 1.4 1 .8 1.4 2.1 1 2.6.8.1-.6.3-1 .6-1.2-1.9-.2-3.9-1-3.9-4.3 0-1 .3-1.7.9-2.3-.1-.2-.4-1.1.1-2.3 0 0 .8-.2 2.4.9a8.3 8.3 0 0 1 4.4 0c1.6-1.1 2.4-.9 2.4-.9.5 1.2.2 2.1.1 2.3.6.6.9 1.4.9 2.3 0 3.3-2 4.1-3.9 4.3.3.3.6.8.6 1.6v2.4c0 .2.2.5.6.4A8.8 8.8 0 0 0 12 3.2Z"/>',
   disk: '<ellipse cx="12" cy="6.5" rx="7.5" ry="3"/><path d="M4.5 6.5v11c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-11M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/>',
 };
 
@@ -79,6 +80,7 @@ const state = {
   sort: 'name',
   filterTarget: 'all',
   patchCache: new Map(),
+  github: { loading: true, signedIn: false, user: null, clientIdConfigured: false, encrypted: false, error: null },
   jobHandlers: new Map(),
   booted: false,
 };
@@ -166,7 +168,8 @@ async function boot() {
   } catch (error) {
     toast('Could not start', error.message, 'err', 8000);
   }
-  await Promise.all([refreshLibrary(true), refreshRuntimes(), refreshDoctor()]);
+  await Promise.all([refreshLibrary(true), refreshRuntimes(), refreshDoctor(), refreshGitHub()]);
+  api.github.onState(handleGitHubState);
   state.booted = true;
   setRoute('library');
   updateStatusBar();
@@ -285,6 +288,7 @@ function setRoute(route) {
   renderHeader();
   if (route === 'library') renderLibrary();
   if (route === 'runtimes') { renderRuntimes(); refreshRuntimes(true); }
+  if (route === 'community') { renderCommunity(); refreshGitHub(); }
   if (route === 'settings') renderSettings();
   if (route === 'about') renderAbout();
 }
@@ -333,6 +337,20 @@ function renderHeader() {
       </div>`;
     $('#check-updates').addEventListener('click', checkUpdates);
     $('#update-all').addEventListener('click', () => updateRuntime('all'));
+  } else if (state.route === 'community') {
+    header.innerHTML = `
+      <div class="page-heading">
+        <h1 class="page-title">Community</h1>
+        <p class="page-subtitle">Sign in with GitHub to publish patches to the AnyGame catalog.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn" id="community-catalog">${icon('external', 16)} Catalog repository</button>
+      </div>`;
+    $('#community-catalog').addEventListener('click', () => {
+      const repo = catalogRepoUrl();
+      if (repo) api.shell.openExternal(repo).catch((error) => toast('Could not open GitHub', error.message, 'err'));
+      else setRoute('settings');
+    });
   } else if (state.route === 'settings') {
     header.innerHTML = `
       <div class="page-heading">
@@ -1183,6 +1201,8 @@ function renderSettings() {
               <input type="text" data-setting="outputRoot" value="${escapeAttr(settings.outputRoot || '')}" spellcheck="false">`)}
             ${settingRow('Patch catalog', 'URL, GitHub repo or folder with index.json (AnyPS5 format).', `
               <input type="text" data-setting="patchCatalog" value="${escapeAttr(settings.patchCatalog || '')}" spellcheck="false">`)}
+            ${settingRow('GitHub OAuth client ID', 'Public client ID of an OAuth App with Device Flow enabled.', `
+              <input type="text" data-setting="githubClientId" value="${escapeAttr(settings.githubClientId || '')}" placeholder="Iv1.…" spellcheck="false">`)}
             ${settingRow('Confirm remove', 'Ask before removing an entry from the library.', `
               <label class="switch"><input type="checkbox" data-setting="confirmRemove" ${settings.confirmRemove ? 'checked' : ''}><span></span></label>`)}
           </div>
@@ -1258,6 +1278,215 @@ function wireSettingsInputs(root) {
     if (input.type === 'checkbox' || input.tagName === 'SELECT') input.addEventListener('change', commit);
     else input.addEventListener('blur', commit);
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Community / GitHub                                                  */
+/* ------------------------------------------------------------------ */
+
+async function refreshGitHub() {
+  try {
+    state.github = { ...(await api.github.status()), loading: false, error: null };
+  } catch (error) {
+    state.github = { ...state.github, loading: false, error: error.message };
+  }
+  if (state.route === 'community') renderCommunity();
+}
+
+function handleGitHubState(event) {
+  if (!event) return;
+  if (event.status === 'pending') {
+    const code = $('#device-code');
+    if (code && event.userCode) code.textContent = event.userCode;
+  } else if (event.status === 'signed-in') {
+    state.github = { ...state.github, signedIn: true, user: event.user, loading: false, error: null };
+    if ($('#device-code')) closeModal();
+    toast('Signed in to GitHub', event.user ? '@' + event.user.login : '', 'ok');
+    if (state.route === 'community') renderCommunity();
+  } else if (event.status === 'error') {
+    state.github = { ...state.github, error: event.error };
+    const status = $('#github-device-status');
+    if (status) {
+      status.className = 'drawer-note err';
+      status.textContent = event.error;
+    } else {
+      toast('GitHub login failed', event.error, 'err', 7000);
+    }
+  } else if (event.status === 'signed-out') {
+    state.github = { ...state.github, signedIn: false, user: null };
+    if (state.route === 'community') renderCommunity();
+  }
+}
+
+function catalogRepoUrl() {
+  const source = String(state.settings.patchCatalog || '');
+  const match = source.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)/i);
+  return match ? `https://github.com/${match[1]}/${match[2]}` : '';
+}
+
+function renderCommunity() {
+  if (state.route !== 'community') return;
+  const body = $('#page-body');
+  const github = state.github;
+  let account;
+  if (github.loading) {
+    account = `<div class="patch-empty"><span class="spinner" style="width:12px;height:12px;display:inline-block;vertical-align:-2px"></span> Checking GitHub…</div>`;
+  } else if (github.signedIn && github.user) {
+    account = `
+      <div class="github-user">
+        <img class="avatar" src="${escapeAttr(github.user.avatar || '')}" alt="">
+        <div>
+          <div class="github-name">${escapeHtml(github.user.name || github.user.login)}</div>
+          <div class="github-login">@${escapeHtml(github.user.login)}</div>
+          <div class="patch-meta">Token stored ${github.encrypted ? 'encrypted' : 'in a 0600 file (no OS keyring)'}.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn small danger" id="github-logout">${icon('x', 13)} Sign out</button>
+      </div>`;
+  } else {
+    account = `
+      <p style="margin:0 0 12px">Connect your GitHub account to publish patches as Pull Requests. AnyGame never sees your password.</p>
+      <button class="btn primary" id="github-login">${icon('github', 16)} Sign in with GitHub</button>
+      ${github.clientIdConfigured ? '' : `<div class="drawer-note" style="margin-top:12px">Device Flow needs an OAuth App client ID. Set it in <strong>Settings → GitHub OAuth client ID</strong>, or use a personal access token below.</div>`}
+      <div class="pat-box">
+        <div class="field">
+          <label>Personal access token</label>
+          <div class="row">
+            <input type="password" id="github-pat" placeholder="github_pat_…" spellcheck="false">
+            <button class="btn" id="github-pat-login">Use token</button>
+          </div>
+          <span class="hint">Fine-grained token with Contents: read/write and Pull requests: read/write on the catalog repository.</span>
+        </div>
+      </div>`;
+  }
+  body.innerHTML = `
+    <div class="community-grid">
+      <div>
+        <div class="settings-card">
+          <div class="head"><h3>GitHub account</h3><p>Used only to fork the catalog and open a Pull Request.</p></div>
+          <div class="body">${account}</div>
+        </div>
+        <div class="settings-card">
+          <div class="head"><h3>How publishing works</h3></div>
+          <div class="body">
+            <div class="community-step"><span class="step-number">1</span><div><strong>Create and validate</strong><br><span>Choose a game, find the bytes and run the relinker verification.</span></div></div>
+            <div class="community-step"><span class="step-number">2</span><div><strong>Submit</strong><br><span>AnyGame forks the catalog, commits the entry and TOML, and opens a Pull Request.</span></div></div>
+            <div class="community-step"><span class="step-number">3</span><div><strong>Review</strong><br><span>A maintainer tests it; CI checks the format and target hashes. Nothing is auto-merged.</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="settings-card">
+          <div class="head"><h3>Scope and safety</h3></div>
+          <div class="body">
+            <p style="color:var(--muted);font-size:11.5px;line-height:1.6;margin:0">
+              Device Flow requests the <code>public_repo</code> scope. The token stays in the Electron main
+              process and is stored with the OS keyring when available. A patch changes game bytes, so every
+              submission is reviewed and tested by a maintainer.
+            </p>
+          </div>
+        </div>
+        <div class="settings-card">
+          <div class="head"><h3>OAuth App</h3></div>
+          <div class="body">
+            <p style="color:var(--muted);font-size:11.5px;line-height:1.6;margin:0 0 10px">
+              ${github.clientIdConfigured ? 'Device Flow is configured.' : 'Create a GitHub OAuth App, enable Device Flow and paste its public client ID in Settings.'}
+            </p>
+            <button class="btn small" id="github-oauth">${icon('external', 13)} Create OAuth App</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  $('#github-login')?.addEventListener('click', startGitHubLogin);
+  $('#github-logout')?.addEventListener('click', signOutGitHub);
+  $('#github-pat-login')?.addEventListener('click', () => {
+    const token = $('#github-pat')?.value || '';
+    signInWithToken(token);
+  });
+  $('#github-oauth')?.addEventListener('click', () => api.shell.openExternal('https://github.com/settings/applications/new'));
+}
+
+async function startGitHubLogin() {
+  if (!state.github.clientIdConfigured) {
+    openModal(`
+      <div class="modal-head">
+        <div><h3>GitHub OAuth App required</h3><p>Device Flow is the passwordless login.</p></div>
+        <span class="spacer"></span>
+        <button class="btn icon ghost" data-modal-close>${icon('x', 16)}</button>
+      </div>
+      <div class="modal-body">
+        <div class="drawer-note">
+          Create an OAuth App at <strong>github.com/settings/applications/new</strong>, enable
+          <strong>Device Flow</strong>, then paste its public Client ID in
+          <strong>Settings → GitHub OAuth client ID</strong>. Until then, use a personal access token.
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label>Personal access token</label>
+          <div class="row">
+            <input type="password" id="modal-pat" placeholder="github_pat_…" spellcheck="false">
+            <button class="btn" id="modal-pat-login">Use token</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot"><span class="spacer"></span><button class="btn ghost" data-modal-close>Close</button></div>`);
+    $('#modal-pat-login')?.addEventListener('click', () => signInWithToken($('#modal-pat')?.value || ''));
+    return;
+  }
+  let info;
+  try {
+    info = await api.github.start();
+  } catch (error) {
+    toast('Could not start GitHub login', error.message, 'err', 7000);
+    return;
+  }
+  openModal(`
+    <div class="modal-head">
+      <div><h3>Sign in with GitHub</h3><p>Enter this code on GitHub to authorize AnyGame.</p></div>
+      <span class="spacer"></span>
+      <button class="btn icon ghost" data-modal-close>${icon('x', 16)}</button>
+    </div>
+    <div class="modal-body">
+      <div class="device-code" id="device-code">${escapeHtml(info.userCode)}</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+        <button class="btn" id="device-copy">${icon('check', 14)} Copy code</button>
+        <button class="btn primary" id="device-open">${icon('external', 14)} Open GitHub</button>
+      </div>
+      <div class="drawer-note" id="github-device-status" style="margin-top:14px">Waiting for authorization…</div>
+    </div>
+    <div class="modal-foot"><span class="spacer"></span><button class="btn ghost" id="device-cancel">Cancel</button></div>`);
+  const cancel = async () => { await api.github.cancel().catch(() => {}); closeModal(); };
+  $('#device-cancel')?.addEventListener('click', cancel);
+  $('#device-copy')?.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(info.userCode); toast('Code copied', '', 'ok', 1600); }
+    catch (_) { toast('Copy the code manually', info.userCode, 'warn', 5000); }
+  });
+  $('#device-open')?.addEventListener('click', () => api.shell.openExternal(info.verificationUri));
+  modalCloseHooks.push(() => api.github.cancel().catch(() => {}));
+}
+
+async function signInWithToken(token) {
+  if (!token.trim()) { toast('Paste a GitHub token first', '', 'warn'); return; }
+  try {
+    const result = await api.github.pat(token.trim());
+    state.github = { ...state.github, signedIn: true, user: result.user, error: null };
+    closeModal();
+    toast('Signed in to GitHub', '@' + result.user.login, 'ok');
+    if (state.route === 'community') renderCommunity();
+  } catch (error) {
+    toast('GitHub login failed', error.message, 'err', 7000);
+  }
+}
+
+async function signOutGitHub() {
+  try {
+    await api.github.logout();
+    state.github = { ...state.github, signedIn: false, user: null };
+    toast('Signed out of GitHub', '', 'ok');
+    renderCommunity();
+  } catch (error) {
+    toast('Could not sign out', error.message, 'err');
+  }
 }
 
 /* ------------------------------------------------------------------ */

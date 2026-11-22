@@ -313,7 +313,7 @@ func buildWindows(root, electronDir, sidecars, output string) error {
 
 func copyApp(root, destination string) error {
 	source := filepath.Join(root, "ui")
-	for _, name := range []string{"package.json", "main.js", "preload.js"} {
+	for _, name := range []string{"package.json", "main.js", "preload.js", "github.js"} {
 		if err := copyFile(filepath.Join(source, name), filepath.Join(destination, name), 0o644); err != nil {
 			return err
 		}

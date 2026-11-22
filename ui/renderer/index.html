@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; font-src 'self' data:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file: https://avatars.githubusercontent.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; font-src 'self' data:;">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AnyGame</title>
   <link rel="stylesheet" href="styles.css">
@@ -43,6 +43,10 @@
           <button class="nav-item" data-route="runtimes">
             <span class="nav-icon" data-icon="cpu"></span>
             <span>Runtimes</span>
+          </button>
+          <button class="nav-item" data-route="community">
+            <span class="nav-icon" data-icon="github"></span>
+            <span>Community</span>
           </button>
           <p class="nav-label">System</p>
           <button class="nav-item" data-route="settings">

@@ -27,6 +27,7 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 | App de escritorio (biblioteca, conversión, runtimes, ajustes) | ✅ |
 | Verificación estática del paquete (`verify`) y prueba de arranque (`diagnose`) | ✅ |
 | Catálogo de parches AnyPS5 (TOML) en la ficha del juego | ✅ |
+| Login de GitHub en la app (Device Flow + PAT) | ✅ |
 | Empaquetado: AppImage (Linux) y ZIP con `.exe` (Windows) | ✅ |
 | Lotes, catálogo de parches, perfiles por juego | ⏳ |
 
@@ -132,6 +133,30 @@ Formato: `index.json` con `format: 1`, entradas con `titleId`,
 `contentVersion`, `patch` y `targets` (SHA-256), y parches TOML de AnyPS5. Las
 descargas se guardan en `ANYGAME_HOME/cache/patch-catalog`.
 
+## Login de GitHub
+
+**Community → Sign in with GitHub** abre el Device Flow: la app muestra un
+código, lo pegas en `github.com/login/device` y autorizas. El token se guarda
+cifrado con el llavero del sistema y nunca llega al renderer.
+
+Para habilitar el Device Flow crea una OAuth App:
+
+1. `https://github.com/settings/applications/new`
+2. Nombre `AnyGame`; Homepage la URL del repo de parches.
+3. Callback `https://github.com` (Device Flow no la usa).
+4. Activa **Enable Device Flow**.
+5. Copia el **Client ID** y pégalo en **Settings → GitHub OAuth client ID**
+   o expórtalo como `ANYGAME_GITHUB_CLIENT_ID`.
+
+Scope solicitado: `public_repo`, el mínimo de OAuth para abrir PRs en un repo
+público. Alternativa sin OAuth App: un **PAT fine-grained** con
+*Contents: read/write* y *Pull requests: read/write* sobre el repo del catálogo,
+pegado en Community. El token se guarda en `github-auth.json` (0600) cifrado
+cuando el sistema lo permite.
+
+La publicación automática del PR se implementará sobre esta sesión; hoy el
+login ya está operativo y el token queda disponible en el proceso principal.
+
 ## Variables de entorno
 
 | Variable | Efecto |
@@ -139,6 +164,7 @@ descargas se guardan en `ANYGAME_HOME/cache/patch-catalog`.
 | `ANYGAME_HOME` | Directorio de datos (runtimes, caché, estado). |
 | `GITHUB_TOKEN` | Sube el límite de la API de GitHub. |
 | `ANYGAME_PATCH_CATALOG` | Fuerza la fuente del catálogo de parches. |
+| `ANYGAME_GITHUB_CLIENT_ID` | Client ID público de la OAuth App para Device Flow. |
 
 ## Licencia y aviso legal
 

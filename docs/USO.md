@@ -173,6 +173,25 @@ Configura la fuente en **Settings → Patch catalog** (URL, repo de GitHub o
 carpeta local) o con `ANYGAME_PATCH_CATALOG`. El catálogo incluido está vacío: no
 se distribuyen parches de terceros.
 
+## GitHub y comunidad
+
+**Community** permite iniciar sesión sin contraseña:
+
+1. Pulsa **Sign in with GitHub**.
+2. Copia el código y ábrelo en `github.com/login/device`.
+3. Autoriza; la app guarda el token cifrado y muestra tu cuenta.
+
+Requisitos:
+
+- Una **OAuth App** con *Enable Device Flow* y su Client ID en
+  **Settings → GitHub OAuth client ID** (o `ANYGAME_GITHUB_CLIENT_ID`).
+- Alternativa: **PAT fine-grained** con *Contents: read/write* y
+  *Pull requests: read/write* sobre el repositorio del catálogo.
+
+El scope de Device Flow es `public_repo`. El token no se expone a la interfaz;
+se guarda con `safeStorage` (o un fichero 0600 si no hay llavero). *Sign out*
+lo borra. La publicación del PR usará esta sesión y pasará por revisión humana.
+
 ## Ejecutar
 
 ```sh
