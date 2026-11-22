@@ -39,6 +39,7 @@ type Options struct {
 	Needed      []string
 	NeededKnown bool
 	Resources   ResourcesMode
+	ExcludeDirs []string
 	Warnings    []string
 }
 
@@ -126,8 +127,13 @@ func Package(options Options) (*Result, error) {
 		if filepath.Base(options.Game.Resources) != "app0" {
 			excluded["app0"] = true
 		}
-		for _, directory := range options.Game.ModuleDirs {
-			excluded[filepath.Base(directory)] = true
+		for _, directory := range options.ExcludeDirs {
+			excluded[filepath.ToSlash(filepath.Clean(directory))] = true
+		}
+		if len(options.ExcludeDirs) == 0 {
+			for _, directory := range options.Game.ModuleDirs {
+				excluded[filepath.Base(directory)] = true
+			}
 		}
 		excluded[filepath.Base(options.Game.Eboot)] = true
 		if err := copyResources(options.Game.Resources, app0, options.OutputDir, options.Resources == ResourcesLink, excluded); err != nil {
@@ -231,6 +237,11 @@ func copyLibraries(libsDir string, needed []string, neededKnown bool, platform, 
 	return copied, warnings, nil
 }
 
+func isRuntimeLibrary(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.HasSuffix(lower, ".prx") || strings.HasSuffix(lower, ".sprx")
+}
+
 func contains(values []string, value string) bool {
 	for _, item := range values {
 		if item == value {
@@ -272,7 +283,9 @@ func resolveClosure(libsDir string, needed []string, neededKnown bool) ([]string
 		}
 		seen[name] = true
 		if _, err := os.Stat(filepath.Join(libsDir, name)); err != nil {
-			warnings = append(warnings, fmt.Sprintf("needed library %s is not in the AnyPS5 runtime", name))
+			if isRuntimeLibrary(name) {
+				warnings = append(warnings, fmt.Sprintf("needed library %s is not in the AnyPS5 runtime", name))
+			}
 			continue
 		}
 		result = append(result, name)
@@ -296,29 +309,22 @@ func importedLibraries(path string) ([]string, error) {
 }
 
 func copyResources(source, destination, outputDir string, link bool, excluded map[string]bool) error {
-	entries, err := os.ReadDir(source)
-	if err != nil {
-		return err
-	}
-	outputAbsolute, _ := filepath.Abs(outputDir)
-	for _, entry := range entries {
-		name := entry.Name()
-		if excluded[name] || strings.HasPrefix(name, ".anygame") {
-			continue
-		}
-		sourcePath := filepath.Join(source, name)
-		sourceAbsolute, _ := filepath.Abs(sourcePath)
-		if sourceAbsolute == outputAbsolute || strings.HasPrefix(sourceAbsolute, outputAbsolute+string(os.PathSeparator)) {
-			continue
-		}
-		if err := copyEntry(sourcePath, filepath.Join(destination, name), link); err != nil {
-			return fmt.Errorf("copy %s: %w", sourcePath, err)
-		}
-	}
-	return nil
+	return copyEntry(source, destination, "", outputDir, link, excluded, true)
 }
 
-func copyEntry(source, destination string, link bool) error {
+func copyEntry(source, destination, relative, outputDir string, link bool, excluded map[string]bool, root bool) error {
+	relative = filepath.ToSlash(filepath.Clean(relative))
+	if !root && excluded[relative] {
+		return nil
+	}
+	if !root && strings.HasPrefix(filepath.Base(source), ".anygame") {
+		return nil
+	}
+	sourceAbsolute, _ := filepath.Abs(source)
+	outputAbsolute, _ := filepath.Abs(outputDir)
+	if !root && (sourceAbsolute == outputAbsolute || strings.HasPrefix(sourceAbsolute, outputAbsolute+string(os.PathSeparator))) {
+		return nil
+	}
 	info, err := os.Lstat(source)
 	if err != nil {
 		return err
@@ -337,7 +343,7 @@ func copyEntry(source, destination string, link bool) error {
 		if !filepath.IsAbs(resolved) {
 			resolved = filepath.Join(filepath.Dir(source), target)
 		}
-		return copyEntry(resolved, destination, link)
+		return copyEntry(resolved, destination, relative, outputDir, link, excluded, false)
 	case info.IsDir():
 		if err := os.MkdirAll(destination, info.Mode().Perm()|0o700); err != nil {
 			return err
@@ -347,7 +353,11 @@ func copyEntry(source, destination string, link bool) error {
 			return err
 		}
 		for _, entry := range entries {
-			if err := copyEntry(filepath.Join(source, entry.Name()), filepath.Join(destination, entry.Name()), link); err != nil {
+			childRelative := entry.Name()
+			if !root {
+				childRelative = filepath.ToSlash(filepath.Join(filepath.FromSlash(relative), entry.Name()))
+			}
+			if err := copyEntry(filepath.Join(source, entry.Name()), filepath.Join(destination, entry.Name()), childRelative, outputDir, link, excluded, false); err != nil {
 				return err
 			}
 		}

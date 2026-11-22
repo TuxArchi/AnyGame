@@ -136,3 +136,39 @@ func write(t *testing.T, path string, body []byte) {
 		t.Fatal(err)
 	}
 }
+
+func TestDiscoverNestedDefaultLanguage(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "eboot.bin"), []byte{0x54, 0x14, 0xf5, 0xee})
+	write(t, filepath.Join(root, "sce_sys", "param.json"),
+		[]byte(`{"titleId":"PPSA25670","contentVersion":"01.000.003","localizedParameters":{"defaultLanguage":"en-US","en-US":{"titleName":"Woodo"},"es-ES":{"titleName":"Woodo ES"}}}`))
+	info, err := Discover(root)
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if info.TitleID != "PPSA25670" || info.TitleName != "Woodo" || info.Language != "en-US" {
+		t.Fatalf("unexpected metadata: %#v", info)
+	}
+}
+
+func TestDiscoverExtraModuleDirs(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "eboot.bin"), []byte{0x7f, 'E', 'L', 'F'})
+	write(t, filepath.Join(root, "sce_module", "libc.prx"), []byte("module"))
+	write(t, filepath.Join(root, "Media", "Modules", "PS5Util.prx"), []byte("module"))
+	write(t, filepath.Join(root, "Media", "Plugins", "libfmod.prx"), []byte("module"))
+	write(t, filepath.Join(root, "fakelib", "libSceAgc.sprx"), []byte("module"))
+	info, err := Discover(root)
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	want := []string{"Media/Modules", "Media/Plugins"}
+	if len(info.ExtraModuleDirs) != len(want) {
+		t.Fatalf("extra modules = %#v, want %#v", info.ExtraModuleDirs, want)
+	}
+	for index, value := range want {
+		if info.ExtraModuleDirs[index] != value {
+			t.Fatalf("extra modules = %#v, want %#v", info.ExtraModuleDirs, want)
+		}
+	}
+}

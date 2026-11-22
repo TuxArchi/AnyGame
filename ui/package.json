@@ -1,0 +1,10 @@
+{
+  "name": "anygame",
+  "productName": "AnyGame",
+  "version": "0.1.0",
+  "description": "Desktop launcher for PS5 games recompiled with AnyPS5",
+  "main": "main.js",
+  "author": "AnyGame",
+  "license": "GPL-2.0-only",
+  "private": true
+}

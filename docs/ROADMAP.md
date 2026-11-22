@@ -27,17 +27,21 @@
       `APS5_OUTPUT_RESOLUTION`, `ANYPS5_UPSCALE`).
 - [ ] Logs estructurados y `--verbose` en todos los comandos.
 
-## Fase 3 — Interfaz
+## Fase 3 — Interfaz (hecho)
 
-- [ ] TUI (bubbletea o similar) con lista de juegos, estado y progreso.
-- [ ] GUI opcional (Fyne/Wails) reutilizando el mismo núcleo.
+- [x] App de escritorio (biblioteca, ficha, conversión con log, runtimes,
+      ajustes y diagnóstico).
+- [x] AppImage Linux y ZIP Windows con `.exe` y sidecar.
+- [x] Empaquetado reproducible con Electron y `appimagetool`.
 - [ ] Integración con Steam: añadir acceso directo no-Steam y portada.
+- [ ] Bandeja del sistema y arranque minimizado.
 
 ## Fase 4 — Compatibilidad y calidad
 
 - [ ] Matriz de pruebas con títulos homebrew y demos legales.
 - [ ] Integración CI (Linux + Windows) con tests de release simulado.
 - [ ] Firma de los binarios de AnyGame en Windows.
+- [ ] Autoactualización de la app de escritorio.
 - [ ] Empaquetado (AppImage/zip) y autoactualización de AnyGame.
 - [ ] i18n (es/en) de la CLI.
 

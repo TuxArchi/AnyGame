@@ -26,21 +26,22 @@ const (
 
 // Info describes a discovered title.
 type Info struct {
-	Input          string
-	Root           string
-	Resources      string
-	Eboot          string
-	Kind           Kind
-	EbootSize      int64
-	ModuleDirs     []string
-	ParamJSON      string
-	ParamSFO       string
-	TitleID        string
-	TitleName      string
-	ContentVersion string
-	Language       string
-	Icon           string
-	Warnings       []string
+	Input           string
+	Root            string
+	Resources       string
+	Eboot           string
+	Kind            Kind
+	EbootSize       int64
+	ModuleDirs      []string
+	ExtraModuleDirs []string
+	ParamJSON       string
+	ParamSFO        string
+	TitleID         string
+	TitleName       string
+	ContentVersion  string
+	Language        string
+	Icon            string
+	Warnings        []string
 }
 
 // Discover finds the executable, modules and metadata of a title.
@@ -90,6 +91,7 @@ func Discover(input string) (*Info, error) {
 		}
 	}
 	info.ModuleDirs = uniqueStrings(info.ModuleDirs)
+	info.ExtraModuleDirs = findExtraModuleDirs(info.Resources)
 
 	for _, base := range uniquePaths(info.Resources, info.Root) {
 		if info.ParamJSON == "" {
@@ -199,10 +201,10 @@ func sniff(path string) (Kind, int64, error) {
 }
 
 type paramJSON struct {
-	TitleID             string                    `json:"titleId"`
-	ContentVersion      string                    `json:"contentVersion"`
-	DefaultLanguage     string                    `json:"defaultLanguage"`
-	LocalizedParameters map[string]map[string]any `json:"localizedParameters"`
+	TitleID             string                     `json:"titleId"`
+	ContentVersion      string                     `json:"contentVersion"`
+	DefaultLanguage     string                     `json:"defaultLanguage"`
+	LocalizedParameters map[string]json.RawMessage `json:"localizedParameters"`
 }
 
 func applyParamJSON(info *Info, path string) error {
@@ -220,27 +222,35 @@ func applyParamJSON(info *Info, path string) error {
 	if param.ContentVersion != "" {
 		info.ContentVersion = param.ContentVersion
 	}
-	info.Language = param.DefaultLanguage
-	if name := localizedName(param.LocalizedParameters, param.DefaultLanguage); name != "" {
+	language := param.DefaultLanguage
+	if language == "" {
+		if raw, ok := param.LocalizedParameters["defaultLanguage"]; ok {
+			_ = json.Unmarshal(raw, &language)
+		}
+	}
+	info.Language = language
+	if name := localizedName(param.LocalizedParameters, language); name != "" {
 		info.TitleName = name
 	}
 	return nil
 }
 
-func localizedName(parameters map[string]map[string]any, language string) string {
+func localizedName(parameters map[string]json.RawMessage, language string) string {
 	if parameters == nil {
 		return ""
 	}
 	try := func(key string) string {
-		entry, ok := parameters[key]
+		raw, ok := parameters[key]
 		if !ok {
 			return ""
 		}
-		value, ok := entry["titleName"].(string)
-		if !ok {
+		var entry struct {
+			TitleName string `json:"titleName"`
+		}
+		if err := json.Unmarshal(raw, &entry); err != nil {
 			return ""
 		}
-		return strings.TrimSpace(value)
+		return strings.TrimSpace(entry.TitleName)
 	}
 	if language != "" {
 		if name := try(language); name != "" {
@@ -252,6 +262,9 @@ func localizedName(parameters map[string]map[string]any, language string) string
 	}
 	keys := make([]string, 0, len(parameters))
 	for key := range parameters {
+		if key == "defaultLanguage" {
+			continue
+		}
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
@@ -333,6 +346,45 @@ func ParseSFO(data []byte) (map[string]any, error) {
 		}
 	}
 	return result, nil
+}
+
+func findExtraModuleDirs(resources string) []string {
+	var result []string
+	rootDepth := strings.Count(filepath.Clean(resources), string(os.PathSeparator))
+	_ = filepath.WalkDir(resources, func(current string, entry os.DirEntry, err error) error {
+		if err != nil || !entry.IsDir() {
+			return nil
+		}
+		if depth := strings.Count(filepath.Clean(current), string(os.PathSeparator)) - rootDepth; depth > 4 {
+			return filepath.SkipDir
+		}
+		name := strings.ToLower(entry.Name())
+		if name == "sce_module" || name == "sce_modules" || name == "prx" || name == "fakelib" || strings.HasPrefix(name, ".") {
+			if current != resources {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if name != "modules" && name != "plugins" {
+			return nil
+		}
+		entries, err := os.ReadDir(current)
+		if err != nil {
+			return nil
+		}
+		for _, child := range entries {
+			if !child.IsDir() && strings.HasSuffix(strings.ToLower(child.Name()), ".prx") {
+				relative, err := filepath.Rel(resources, current)
+				if err == nil && relative != "." {
+					result = append(result, filepath.ToSlash(relative))
+				}
+				break
+			}
+		}
+		return nil
+	})
+	sort.Strings(result)
+	return uniqueStrings(result)
 }
 
 func fileExists(path string) bool {

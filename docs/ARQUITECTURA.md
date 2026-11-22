@@ -56,9 +56,16 @@ game.Discover ──► título, módulos, metadatos
 self.UnwrapFile (solo si es SELF) ──► .anygame-work/eboot.elf
         │
         ▼
+stageModules
+  ├── desenvuelve sce_module/*.prx  (SELF → ELF)
+  ├── desenvuelve Media/Modules|Plugins/*.prx
+  └── deja todo en .anygame-work/modules
+        │
+        ▼
 relinker --registry --rpath '$ORIGIN/libs' …
-  --sce-module-path <recursos>
-  [--module-dir …] [--executable …] [--patches …]
+  --sce-module-path .anygame-work/modules
+  [--module-dir Media/Modules --module-dir Media/Plugins]
+  [--executable …] [--patches …]
         │
         ├──► <salida>/<id>.elf | .exe
         ├──► <id>.registry.json
@@ -72,6 +79,15 @@ packaging.Package
   ├── <Título>.desktop + icon.png
   └── anygame.json
 ```
+
+### Módulos SELF y plugins
+
+Los volcados suelen traer los módulos (`sce_module/*.prx`, `Media/Plugins/*.prx`)
+como contenedores SELF. El relinker los omite con un aviso, así que AnyGame los
+desenvuelve antes a un árbol de trabajo y le pasa ese árbol como
+`--sce-module-path`. Los directorios `Modules`/`Plugins` bajo el título se
+detectan automáticamente (hasta 4 niveles) y se pasan como `--module-dir`; sus
+originales se excluyen de `app0/` para no pisar los módulos convertidos.
 
 ### Por qué `app0/`
 
@@ -141,6 +157,40 @@ $ANYGAME_HOME/
 
 La suite incluye un contenedor SELF sintético y una comprobación manual contra el
 script original: la salida es **idéntica byte a byte**.
+
+## Aplicación de escritorio
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Renderer (HTML/CSS/JS, sin framework)                       │
+│  biblioteca · ficha · conversión · runtimes · ajustes       │
+└───────────────┬─────────────────────────────────────────────┘
+                │ contextBridge (IPC)
+┌───────────────▼─────────────────────────────────────────────┐
+│ Electron main (ui/main.js)                                  │
+│  ventana · diálogos · library.json · procesos · ajustes     │
+└───────────────┬─────────────────────────────────────────────┘
+                │ spawn (sin shell)
+┌───────────────▼─────────────────────────────────────────────┐
+│ bin/anygame[.exe]  (el mismo CLI del proyecto)              │
+│  info · build · run · update · runtimes · doctor           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- **Sin bundler ni npm**: el renderer es HTML/CSS/JS servido desde `file://` y
+  `preload.js` expone una API mínima con `contextIsolation` y `sandbox`.
+- **Sin `shell: true`**: cada acción construye un array de argumentos para el
+  CLI; los datos del usuario nunca se interpolan en una línea de comandos.
+- **Estado compartido**: `library.json` en `ANYGAME_HOME`; cada entrada guarda
+  ruta del título, ruta del paquete, target, icono y fechas. La CLI no necesita
+  conocer la biblioteca.
+- **Progreso**: `build` y `update` se lanzan como procesos hijos y su
+  stdout/stderr se reenvía al modal de log; se puede cancelar (SIGTERM y, tras
+  4 s, SIGKILL).
+- **Empaquetado**: `tools/package` descarga Electron, compila el sidecar para
+  Linux y Windows, copia `ui/` en `resources/app` y genera el AppDir + AppImage
+  o el ZIP Windows. El AppImage usa `--no-sandbox` (sandbox de Chromium no
+  disponible tras el montaje) y CSP sin conexiones de red.
 
 ## Decisiones
 

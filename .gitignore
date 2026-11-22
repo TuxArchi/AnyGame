@@ -7,3 +7,6 @@
 
 # Conversion artifacts
 *.conversion.log
+
+# Local game dumps used for testing
+/Juego/

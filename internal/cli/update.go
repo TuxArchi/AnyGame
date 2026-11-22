@@ -267,6 +267,9 @@ func runInfo(args []string, stdout, stderr io.Writer) int {
 	} else {
 		fmt.Fprintf(stdout, "Modules:     %s\n", strings.Join(info.ModuleDirs, ", "))
 	}
+	if len(info.ExtraModuleDirs) > 0 {
+		fmt.Fprintf(stdout, "Plugins:     %s\n", strings.Join(info.ExtraModuleDirs, ", "))
+	}
 	if info.ParamJSON != "" {
 		fmt.Fprintf(stdout, "Metadata:    %s\n", info.ParamJSON)
 	} else if info.ParamSFO != "" {

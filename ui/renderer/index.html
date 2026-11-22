@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; font-src 'self' data:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AnyGame</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="titlebar">
+      <div class="titlebar-brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M8.5 6.6 18 12l-9.5 5.4V6.6Z" fill="currentColor"/></svg>
+        </span>
+        <span class="brand-word">ANYGAME</span>
+        <span class="brand-tag">PS5 LAUNCHER</span>
+      </div>
+      <div class="titlebar-drag"></div>
+      <div class="window-controls">
+        <button class="window-button" data-win="minimize" title="Minimize" aria-label="Minimize">
+          <svg viewBox="0 0 12 12"><path d="M3 6h6"/></svg>
+        </button>
+        <button class="window-button" data-win="toggle" title="Maximize" aria-label="Maximize">
+          <svg viewBox="0 0 12 12"><rect x="3" y="3" width="6" height="6" rx="1"/></svg>
+        </button>
+        <button class="window-button danger" data-win="close" title="Close" aria-label="Close">
+          <svg viewBox="0 0 12 12"><path d="M3.5 3.5l5 5m0-5l-5 5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <nav class="nav">
+          <p class="nav-label">Library</p>
+          <button class="nav-item" data-route="library">
+            <span class="nav-icon" data-icon="grid"></span>
+            <span>Games</span>
+            <span class="nav-count" id="nav-count">0</span>
+          </button>
+          <button class="nav-item" data-route="runtimes">
+            <span class="nav-icon" data-icon="cpu"></span>
+            <span>Runtimes</span>
+          </button>
+          <p class="nav-label">System</p>
+          <button class="nav-item" data-route="settings">
+            <span class="nav-icon" data-icon="settings"></span>
+            <span>Settings</span>
+          </button>
+          <button class="nav-item" data-route="about">
+            <span class="nav-icon" data-icon="info"></span>
+            <span>About</span>
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <button class="runtime-card" id="runtime-card" data-route="runtimes">
+            <span class="runtime-dot" id="runtime-dot"></span>
+            <span class="runtime-copy">
+              <span class="runtime-title" id="runtime-title">AnyPS5 runtime</span>
+              <span class="runtime-sub" id="runtime-sub">checking…</span>
+            </span>
+            <span class="runtime-arrow" data-icon="chevron"></span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="page-header" id="page-header"></header>
+        <section class="page-body" id="page-body"></section>
+      </main>
+    </div>
+
+    <footer class="statusbar">
+      <div class="status-left" id="status-left">
+        <span class="status-dot"></span>
+        <span id="status-runtime">AnyPS5 · checking</span>
+      </div>
+      <div class="status-right" id="status-right">
+        <span id="status-gpu">GPU · detecting</span>
+        <span class="status-sep"></span>
+        <span id="status-home" title="Data directory">data</span>
+      </div>
+    </footer>
+  </div>
+
+  <div id="drawer-root"></div>
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-root"></div>
+  <script src="app.js"></script>
+</body>
+</html>

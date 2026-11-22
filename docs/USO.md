@@ -1,5 +1,39 @@
 # Uso
 
+## Aplicación de escritorio
+
+Linux:
+
+```sh
+chmod +x AnyGame-0.1.0-x86_64.AppImage
+ANYGAME_HOME="$HOME/.local/share/AnyGame" ./AnyGame-0.1.0-x86_64.AppImage
+```
+
+Windows: descomprime el ZIP y ejecuta `AnyGame.exe`.
+
+Flujo recomendado:
+
+1. **Runtimes → Install latest** descarga las librerías de Linux y Windows.
+   *Check updates* consulta el último release y *Reinstall* repara una instalación.
+2. **Games → Add game** abre el selector de carpetas y ejecuta
+   `anygame info` para leer el título.
+3. Pulsa una portada para abrir la ficha: fuente, paquete, target, runtime,
+   avisos y acciones.
+4. **Convert** abre el formulario (target, salida, recursos, parches). El log de
+   AnyPS5 se muestra en vivo y la entrada se actualiza al terminar.
+5. **Play** lanza el paquete en segundo plano. **Rebuild** vuelve a convertir.
+
+Ajustes:
+
+- *Default target* y *Resources* se aplican a nuevas conversiones.
+- *Output root* es la carpeta padre por defecto de los paquetes.
+- *Data directory* cambia `ANYGAME_HOME` para la app y la CLI.
+- *GPU filter* se pasa como `ANYPS5_GPU` al lanzar; *Fullscreen* como
+  `ANYPS5_FULLSCREEN=1`.
+
+La biblioteca vive en `<data>/library.json`; los runtimes, en
+`<data>/runtimes/`. La CLI ve los mismos datos.
+
 ## Instalación del runtime
 
 ```sh
@@ -30,7 +64,14 @@ AnyGame busca, en este orden:
 
 Los metadatos salen de `sce_sys/param.json`; si no existe, de
 `sce_sys/param.sfo`. Los módulos se buscan en `sce_module`, `sce_modules` y
-`prx` junto al ejecutable y en la raíz del título.
+`prx` junto al ejecutable y en la raíz del título. Los directorios
+`Media/Modules` y `Media/Plugins` se detectan como módulos adicionales y se
+pasan al relinker automáticamente.
+
+Los módulos SELF se desenvuelven antes de convertir; no hace falta hacerlo a
+mano. Un volcado incompleto (por ejemplo, sin `Media/Metadata`) puede arrancar y
+fallar al cargar los datos de Unity: es un problema del volcado, no del
+pipeline.
 
 ## Convertir y empaquetar
 

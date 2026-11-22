@@ -138,7 +138,6 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	for parent := range parents {
 		moduleParent = parent
 	}
-
 	workDir := filepath.Join(outputDir, ".anygame-work")
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return fail(stderr, err)
@@ -162,6 +161,22 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		}
 	}
 
+	var stagedModules string
+	var stagedExtra []string
+	var moduleWarnings []string
+	if !*skipModules {
+		stagedModules, stagedExtra, moduleWarnings, err = stageModules(info, moduleParent, workDir, moduleDirs)
+		if err != nil {
+			return fail(stderr, err)
+		}
+		for _, warning := range moduleWarnings {
+			fmt.Fprintf(stderr, "warning: %s\n", warning)
+		}
+		if stagedModules != "" {
+			fmt.Fprintf(stderr, "Prepared guest modules for the relinker\n")
+		}
+	}
+
 	patchesPath := *patches
 	if patchesPath == "" && !*noPatches {
 		for _, candidate := range []string{
@@ -180,11 +195,11 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		Input:         conversionInput,
 		Output:        executablePath,
 		Target:        target,
-		SceModulePath: moduleParent,
+		SceModulePath: stagedModules,
 		Registry:      true,
 		Patches:       patchesPath,
 		NoPatches:     *noPatches,
-		ModuleDirs:    moduleDirs,
+		ModuleDirs:    stagedExtra,
 		Executables:   executables,
 		SkipModules:   *skipModules,
 		WindowsGUI:    *windowsGUI,
@@ -218,6 +233,7 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		Needed:      result.Needed,
 		NeededKnown: result.NeededKnown,
 		Resources:   mode,
+		ExcludeDirs: append(moduleExclusions(info), stagedExtra...),
 	})
 	if err != nil {
 		return fail(stderr, err)
@@ -238,7 +254,7 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		Title: info.TitleName, TitleID: info.TitleID, Target: target, Runtime: rt.Version,
 		Executable: packageResult.Executable, Directory: outputDir,
 		Launch: "anygame run " + quotePath(outputDir), Libraries: packageResult.Libraries,
-		Warnings: append(info.Warnings, packageResult.Warnings...),
+		Warnings: append(append(info.Warnings, moduleWarnings...), packageResult.Warnings...),
 	}
 	if *jsonOut {
 		writeJSON(stdout, report)

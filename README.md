@@ -3,7 +3,8 @@
 Capa de producto sobre [AnyPS5](https://github.com/boykopovar/AnyPS5): descubre un
 juego de PS5 extraído, desenvuelve su `eboot.bin` si hace falta, lo convierte con
 el relinker oficial de AnyPS5 y ensambla un paquete listo para ejecutar en Linux o
-Windows.
+Windows. Incluye **CLI** y **aplicación de escritorio** con biblioteca, portadas,
+estado de conversión, runtimes y ajustes.
 
 AnyGame **no reimplementa** el runtime: usa los binarios y las librerías de los
 releases oficiales de AnyPS5, y añade lo que falta para trabajar con juegos
@@ -16,12 +17,15 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 |---|---|
 | Actualizador de AnyPS5 (Linux/Windows, SHA-256, versiones) | ✅ |
 | Descubrimiento de título (`eboot.bin`, `app0/`, módulos, `param.json`/`param.sfo`) | ✅ |
+| Desenvoltura automática de módulos SELF y plugins (`Media/Modules`, `Media/Plugins`) | ✅ |
 | Desenvoltura SELF/fSELF (port en Go, idéntico byte a byte a `unwrap_self.py`) | ✅ |
 | Conversión con el relinker oficial | ✅ |
 | Paquete Linux (ELF, `libs/`, `app0/`, `run.sh`, `.desktop`) | ✅ |
 | Paquete Windows (PE, `libs/`, `app0/`, `run.bat`) | ✅ |
 | Copia selectiva de librerías según `.needed.json` + dependencias | ✅ |
-| GUI/TUI, lotes, catálogo de parches, perfiles por juego | ⏳ |
+| App de escritorio (biblioteca, conversión, runtimes, ajustes) | ✅ |
+| Empaquetado: AppImage (Linux) y ZIP con `.exe` (Windows) | ✅ |
+| Lotes, catálogo de parches, perfiles por juego | ⏳ |
 
 ## Requisitos
 
@@ -34,13 +38,26 @@ desenvoltura de SELF, disposición del layout de ejecución, lanzadores y metada
 ## Compilar
 
 ```sh
-make build          # bin/anygame
+make build          # bin/anygame (CLI)
 make check          # formato, vet y tests
-make dist           # binarios Linux y Windows en dist/
-make smoke           # prueba de extremo a extremo (requiere gcc y red)
+make dist           # CLI Linux y Windows en dist/
+make ui             # escritorio: AppImage + ZIP Windows en dist/
+make smoke          # prueba de extremo a extremo (requiere gcc y red)
 ```
 
-## Uso rápido
+`make ui` descarga Electron y `appimagetool` la primera vez (unos 300 MB) en
+`.work-tmp/ui-downloads` y genera:
+
+```text
+dist/AnyGame-<versión>-x86_64.AppImage
+dist/AnyGame-<versión>-windows-x64.zip
+```
+
+El AppImage se ejecuta con `--no-sandbox` desde su `AppRun` porque el sandbox de
+Chromium no funciona dentro de una imagen montada sin privilegios; la app solo
+carga contenido local y bloquea conexiones de red desde la interfaz.
+
+## Uso rápido (CLI)
 
 ```sh
 # 1. Comprobar el host
@@ -61,6 +78,20 @@ anygame run ./juegos/PPSA01234
 
 `anygame update --check` avisa de versiones nuevas sin descargar nada.
 `anygame update --version 0.1.5 --target linux` fija una versión concreta.
+
+## Aplicación de escritorio
+
+Abre el AppImage o `AnyGame.exe` y trabaja desde la biblioteca:
+
+1. **Runtimes** → *Install latest* (Linux + Windows) con progreso en vivo.
+2. **Games** → *Add game* y elige la carpeta extraída del título.
+3. Pulsa una portada → *Convert* (plataforma, carpeta de salida, recursos,
+   parches) y sigue el log de conversión dentro de la app.
+4. *Play* lanza el juego; *Rebuild* lo reconvierte; la carpeta y el manifiesto
+   quedan a mano.
+
+La app y la CLI comparten `library.json`, runtimes y ajustes bajo
+`~/.local/share/AnyGame` (Linux) o `%LOCALAPPDATA%\AnyGame` (Windows).
 
 ## Layout generado
 

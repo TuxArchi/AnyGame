@@ -122,6 +122,7 @@ func Run(ctx context.Context, options Options, log io.Writer) (*Result, error) {
 	command.Stdout = sink
 	command.Stderr = sink
 	command.Dir = filepath.Dir(options.Output)
+	hideWindow(command)
 	runErr := command.Run()
 
 	result := &Result{Executable: options.Output, LogPath: logPath}
@@ -133,6 +134,9 @@ func Run(ctx context.Context, options Options, log io.Writer) (*Result, error) {
 	if runErr != nil {
 		if ctx.Err() != nil {
 			return result, ctx.Err()
+		}
+		if log != nil {
+			return result, fmt.Errorf("relinker failed: %w (log: %s)", runErr, logPath)
 		}
 		return result, fmt.Errorf("relinker failed: %w\n%s", runErr, tail(logPath, 30))
 	}

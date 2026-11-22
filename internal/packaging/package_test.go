@@ -144,6 +144,38 @@ func TestPackageAssemblesApp0(t *testing.T) {
 	}
 }
 
+func TestPackageExcludesNestedModuleDirs(t *testing.T) {
+	runtime := makeRuntime(t, "libkernel.prx")
+	title := makeTitle(t)
+	if err := os.MkdirAll(filepath.Join(title.Resources, "Media", "Modules"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(title.Resources, "Media", "Modules", "PS5Util.prx"), []byte("module"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(title.Resources, "Media", "keep.txt"), []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	output := t.TempDir()
+	executable := filepath.Join(output, "PPSA00001.elf")
+	if err := os.WriteFile(executable, []byte("exe"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Package(Options{
+		OutputDir: output, Executable: executable, Name: "PPSA00001", Target: "linux",
+		Runtime: runtime, Game: title, NeededKnown: true, Resources: ResourcesCopy,
+		ExcludeDirs: []string{"Media/Modules"},
+	}); err != nil {
+		t.Fatalf("Package: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(output, "app0", "Media", "Modules")); err == nil {
+		t.Fatal("excluded module directory was copied")
+	}
+	if _, err := os.Stat(filepath.Join(output, "app0", "Media", "keep.txt")); err != nil {
+		t.Fatalf("resource beside the excluded directory is missing: %v", err)
+	}
+}
+
 func TestPackageWindowsCopiesRuntimeDLLs(t *testing.T) {
 	runtime := makeRuntime(t, "libkernel.prx", "libstdc++-6.dll", "libgcc_s_seh-1.dll")
 	output := t.TempDir()
