@@ -261,6 +261,7 @@ function wireStaticActions() {
     item.addEventListener('click', () => setRoute(item.dataset.route));
   });
   $('#runtime-card').addEventListener('click', () => setRoute('runtimes'));
+  document.addEventListener('contextmenu', (event) => event.preventDefault());
   document.addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f' && state.route === 'library') {
       event.preventDefault();
@@ -404,13 +405,17 @@ function renderLibrary() {
     renderLibrary();
   });
   $$('.game-card', body).forEach((card) => {
+    const game = state.games.find((item) => item.id === card.dataset.id);
+    if (!game) return;
     card.addEventListener('click', (event) => {
-      const game = state.games.find((item) => item.id === card.dataset.id);
-      if (!game) return;
       if (event.target.closest('.cover-play')) {
         playGame(game);
         return;
       }
+      openDrawer(game);
+    });
+    card.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
       openDrawer(game);
     });
   });
@@ -483,6 +488,7 @@ async function addGame() {
 
 function openDrawer(game) {
   state.selectedId = game.id;
+  $$('.game-card').forEach((card) => card.classList.toggle('selected', card.dataset.id === game.id));
   const root = $('#drawer-root');
   const status = statusMeta(game);
   const target = game.packageTarget || game.target || state.settings.target;
